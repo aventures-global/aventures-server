@@ -1,6 +1,7 @@
 node_modules/
 dist/
 src/generated/
+.tmp/
 .env
 *.log
 .DS_Store

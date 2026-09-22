@@ -7,4 +7,94 @@ datasource db {
   provider = "postgresql"
 }
 
-// Models will be added here as the API grows.
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+model User {
+  id             String     @id
+  email          String?    @unique
+  firstName      String?
+  lastName       String?
+  phone          String?
+  profilePicture String?
+  role           UserRole   @default(CUSTOMER)
+  cartItems      CartItem[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model Tour {
+  id               String   @id
+  slug             String   @unique
+  title            String
+  tagline          String
+  shortDescription String
+  coverImage       String
+  gallery          String[]
+  duration         String
+  startingPrice    String
+  location         String
+  highlights       String[]
+  itinerary        Json
+  inclusions       String[]
+  exclusions       String[]
+  featured         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model MerchProduct {
+  id          String     @id
+  slug        String     @unique
+  name        String
+  tagline     String
+  description String
+  priceCents  Int
+  currency    String     @default("USD")
+  category    String
+  coverImage  String
+  gallery     String[]
+  sizes       String[]   @default([])
+  inStock     Boolean    @default(true)
+  cartItems   CartItem[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Partner {
+  id        String   @id
+  name      String
+  logoSrc   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Testimonial {
+  id        String   @id
+  quote     String
+  name      String
+  trip      String
+  rating    Int
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id             String       @id @default(cuid())
+  userId         String
+  merchProductId String
+  size           String       @default("")
+  qty            Int
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchProduct   MerchProduct @relation(fields: [merchProductId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, merchProductId, size])
+  @@index([userId])
+}
