@@ -12,6 +12,7 @@ import { tours } from '../../client/src/data/tours.ts'
 import { compressImageFile } from '../src/lib/compressImage.js'
 import { parsePriceToCents } from '../src/lib/money.js'
 import { prisma } from '../src/lib/prisma.js'
+import { guessRegion } from '../src/lib/tourRegion.js'
 import { isR2Configured, putObject, publicUrlForKey } from '../src/lib/storage.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -154,7 +155,7 @@ async function main() {
         })
     }
 
-    for (const tour of tours) {
+    for (const [index, tour] of tours.entries()) {
         const gallery = await Promise.all(
             tour.gallery.map((image) => resolveAssetUrl(image, urlMap)),
         )
@@ -176,6 +177,8 @@ async function main() {
                 inclusions: tour.inclusions,
                 exclusions: tour.exclusions,
                 featured: tour.featured,
+                region: guessRegion(tour.location),
+                sortOrder: index + 1,
             },
             update: {
                 slug: tour.slug,

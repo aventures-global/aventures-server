@@ -15,12 +15,12 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
             throw new AppError(401, 'UNAUTHORIZED', 'Missing bearer token')
         }
 
-        const userId = await verifyNeonToken(token)
-        if (!userId) {
+        const identity = await verifyNeonToken(token)
+        if (!identity) {
             throw new AppError(401, 'UNAUTHORIZED', 'Invalid or expired token')
         }
 
-        req.auth = { userId }
+        req.auth = identity
         next()
     } catch (err) {
         next(err)

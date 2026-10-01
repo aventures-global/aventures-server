@@ -30,7 +30,11 @@ function adminEmails(): Set<string> {
 }
 
 class UserService {
-    async bootstrap(userId: string, seed: z.infer<typeof bootstrapSchema> = {}) {
+    async bootstrap(
+        userId: string,
+        seed: z.infer<typeof bootstrapSchema> = {},
+        options: { neonAdmin?: boolean } = {},
+    ) {
         const profile: BootstrapSeed = {
             email: seed.email ?? null,
             firstName: seed.firstName ?? null,
@@ -42,7 +46,8 @@ class UserService {
         user = (await UserRepository.fillNullFields(userId, profile)) ?? user
 
         const email = user.email?.toLowerCase()
-        if (email && adminEmails().has(email) && user.role !== 'ADMIN') {
+        const promote = options.neonAdmin || (email ? adminEmails().has(email) : false)
+        if (promote && user.role !== 'ADMIN') {
             user = await UserRepository.setRole(userId, 'ADMIN')
         }
 

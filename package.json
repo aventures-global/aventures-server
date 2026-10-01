@@ -12,7 +12,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
-    "assets:webp": "tsx scripts/compress-images.ts"
+    "assets:webp": "tsx scripts/compress-images.ts",
+    "tours:backfill": "tsx scripts/backfill-tours.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

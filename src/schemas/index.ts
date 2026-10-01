@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+import { TOUR_REGIONS } from '../lib/tourRegion.js'
+
+const RESERVED_TOUR_SLUGS = new Set(['search'])
+
 export const slugParamSchema = z.object({
     slug: z.string().min(1),
 })
@@ -16,7 +20,10 @@ export const itineraryDaySchema = z.object({
 
 export const tourCreateSchema = z.object({
     id: z.string().min(1).optional(),
-    slug: z.string().min(1),
+    slug: z
+        .string()
+        .min(1)
+        .refine((value) => !RESERVED_TOUR_SLUGS.has(value), 'This URL slug is reserved'),
     title: z.string().min(1),
     tagline: z.string().min(1),
     shortDescription: z.string().min(1),
@@ -30,9 +37,33 @@ export const tourCreateSchema = z.object({
     inclusions: z.array(z.string()).default([]),
     exclusions: z.array(z.string()).default([]),
     featured: z.boolean().default(false),
+    region: z.enum(TOUR_REGIONS).default('other'),
 })
 
-export const tourUpdateSchema = tourCreateSchema.partial().omit({ id: true })
+export const tourUpdateSchema = tourCreateSchema
+    .partial()
+    .omit({ id: true })
+    .extend({ region: z.enum(TOUR_REGIONS).optional() })
+
+export const tourMoveSchema = z
+    .object({
+        beforeSlug: z.string().min(1).optional(),
+        afterSlug: z.string().min(1).optional(),
+    })
+    .refine((value) => value.beforeSlug || value.afterSlug, 'A neighbouring destination is required')
+
+export const tourSearchSchema = z.object({
+    q: z.string().trim().max(200).default(''),
+    region: z.enum([...TOUR_REGIONS, 'all']).default('all'),
+    featured: z
+        .enum(['true', 'false'])
+        .optional()
+        .transform((value) => value === 'true'),
+    sort: z.enum(['custom', 'name', 'location', 'region', 'featured', 'updated']).default('custom'),
+    dir: z.enum(['asc', 'desc']).default('asc'),
+    cursor: z.coerce.number().int().min(0).default(0),
+    limit: z.coerce.number().int().min(1).max(50).default(12),
+})
 
 export const merchCreateSchema = z.object({
     id: z.string().min(1).optional(),

@@ -42,8 +42,12 @@ model Tour {
   inclusions       String[]
   exclusions       String[]
   featured         Boolean  @default(false)
+  region           String   @default("other")
+  sortOrder        Float    @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([sortOrder])
 }
 
 model MerchProduct {

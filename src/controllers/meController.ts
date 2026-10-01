@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 
 import { AppError } from '../lib/errors.js'
+import { getNeonRole, isNeonAdminRole } from '../lib/neonAuth.js'
 import UserService from '../services/userService.js'
 
 class MeController {
@@ -11,7 +12,10 @@ class MeController {
             throw new AppError(401, 'UNAUTHORIZED', 'Authentication required')
         }
 
-        const user = await UserService.bootstrap(userId, req.body ?? {})
+        const neonRole = req.auth?.neonRole ?? (await getNeonRole(userId))
+        const user = await UserService.bootstrap(userId, req.body ?? {}, {
+            neonAdmin: isNeonAdminRole(neonRole),
+        })
         res.json({ user })
     }
 

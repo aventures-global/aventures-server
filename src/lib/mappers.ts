@@ -18,6 +18,9 @@ export type TourDto = {
     inclusions: string[]
     exclusions: string[]
     featured: boolean
+    region: string
+    sortOrder: number
+    updatedAt: string
 }
 
 export type MerchDto = {
@@ -55,6 +58,9 @@ export function toTourDto(tour: Tour): TourDto {
         inclusions: tour.inclusions,
         exclusions: tour.exclusions,
         featured: tour.featured,
+        region: tour.region,
+        sortOrder: tour.sortOrder,
+        updatedAt: tour.updatedAt.toISOString(),
     }
 }
 
