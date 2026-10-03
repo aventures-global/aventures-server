@@ -8,6 +8,12 @@ import { AppError } from './lib/errors.js'
 
 const app = express()
 
+// Behind a reverse proxy, rate limiting needs the client IP from X-Forwarded-For.
+if (process.env.TRUST_PROXY) {
+    const hops = Number(process.env.TRUST_PROXY)
+    app.set('trust proxy', Number.isNaN(hops) ? process.env.TRUST_PROXY : hops)
+}
+
 const origins = [
     process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
     process.env.ADMIN_ORIGIN,

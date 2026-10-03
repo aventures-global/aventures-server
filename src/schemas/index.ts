@@ -127,3 +127,73 @@ export const cartAddSchema = z.object({
 export const cartUpdateSchema = z.object({
     qty: z.number().int().min(0).max(99),
 })
+
+const shortText = (max = 200) => z.string().trim().min(1).max(max)
+const optionalText = (max = 200) =>
+    z
+        .string()
+        .trim()
+        .max(max)
+        .optional()
+        .transform((value) => value || undefined)
+const countText = z.union([z.string(), z.number()]).transform(String).pipe(z.string().trim().min(1).max(10))
+
+const inquiryBase = {
+    firstName: shortText(100),
+    lastName: shortText(100),
+    email: z.string().trim().email().max(254),
+    phone: optionalText(40),
+    honeypot: z.string().max(500).optional(),
+}
+
+export const inquirySchema = z.discriminatedUnion('kind', [
+    z.object({
+        ...inquiryBase,
+        kind: z.literal('contact'),
+        destination: optionalText(),
+        message: shortText(5000),
+    }),
+    z.object({
+        ...inquiryBase,
+        kind: z.literal('custom-tour'),
+        destination: shortText(),
+        travelDates: optionalText(),
+        travelers: countText,
+        tripLength: optionalText(),
+        flights: shortText(50),
+        addOns: optionalText(300),
+        notes: optionalText(5000),
+    }),
+    z.object({
+        ...inquiryBase,
+        kind: z.literal('flights'),
+        origin: shortText(),
+        destination: shortText(),
+        departDate: shortText(30),
+        returnDate: optionalText(30),
+        passengers: countText,
+        cabin: optionalText(50),
+        notes: optionalText(5000),
+    }),
+    z.object({
+        ...inquiryBase,
+        kind: z.literal('hotels'),
+        destination: shortText(),
+        checkIn: shortText(30),
+        checkOut: shortText(30),
+        rooms: countText,
+        guests: countText,
+        notes: optionalText(5000),
+    }),
+    z.object({
+        ...inquiryBase,
+        kind: z.literal('cars'),
+        pickup: shortText(),
+        dropoff: optionalText(),
+        pickupDate: shortText(30),
+        passengers: countText,
+        notes: optionalText(5000),
+    }),
+])
+
+export type InquiryInput = z.infer<typeof inquirySchema>
