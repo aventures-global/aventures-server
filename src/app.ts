@@ -11,6 +11,7 @@ const app = express()
 const origins = [
     process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
     process.env.ADMIN_ORIGIN,
+    process.env.DEV_ORIGIN
 ].filter((value): value is string => Boolean(value))
 
 app.use(
