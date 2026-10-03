@@ -7,7 +7,10 @@ const DEFAULT_SITE_URL = 'https://aventures-client.vercel.app'
 
 class InquiryService {
     async send(input: InquiryInput) {
-        if (input.honeypot) return
+        if (input.honeypot) {
+            console.warn(`Inquiry dropped by honeypot (kind: ${input.kind})`)
+            return
+        }
 
         const { from, to } = getMailAddresses()
         const mailer = getMailer()

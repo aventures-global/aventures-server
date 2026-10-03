@@ -88,6 +88,46 @@ model Testimonial {
   updatedAt DateTime @updatedAt
 }
 
+model FaqCategory {
+  id        String             @id @default(cuid())
+  name      String
+  sortOrder Int                @default(0)
+  faqs      FaqCategoryOnFaq[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([sortOrder])
+}
+
+model Faq {
+  id         String             @id @default(cuid())
+  question   String
+  answer     String
+  categories FaqCategoryOnFaq[]
+  topEntry   FaqTopEntry?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+}
+
+model FaqCategoryOnFaq {
+  faqId      String
+  categoryId String
+  faq        Faq         @relation(fields: [faqId], references: [id], onDelete: Cascade)
+  category   FaqCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([faqId, categoryId])
+  @@index([categoryId])
+}
+
+model FaqTopEntry {
+  faqId     String   @id
+  position  Int
+  faq       Faq      @relation(fields: [faqId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([position])
+}
+
 model CartItem {
   id             String       @id @default(cuid())
   userId         String

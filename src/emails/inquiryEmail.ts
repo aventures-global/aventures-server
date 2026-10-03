@@ -17,6 +17,7 @@ const serif = "'Noto Serif Display','Noto Serif',Georgia,'Times New Roman',serif
 const sans = "Poppins,'Segoe UI',Helvetica,Arial,sans-serif"
 
 const kindLabels: Record<InquiryInput['kind'], string> = {
+    question: 'Ask AVENtures question',
     contact: 'Travel inquiry',
     'custom-tour': 'Custom tour inquiry',
     flights: 'Flight request',
@@ -40,17 +41,22 @@ function fullName(input: InquiryInput) {
 }
 
 function place(input: InquiryInput) {
+    if (input.kind === 'question') return input.visaType
+    if (input.kind === 'contact') return input.interest
     return input.kind === 'cars' ? input.pickup : input.destination
 }
 
 function message(input: InquiryInput) {
+    if (input.kind === 'question') return input.question
     return input.kind === 'contact' ? input.message : input.notes
 }
 
 function detailFields(input: InquiryInput): Field[] {
     switch (input.kind) {
+        case 'question':
+            return [['Visa type', input.visaType]]
         case 'contact':
-            return [['Destination', input.destination]]
+            return [['Looking for', input.interest]]
         case 'custom-tour':
             return [
                 ['Destination(s)', input.destination],
@@ -160,10 +166,13 @@ function buildHtml(input: InquiryInput, siteUrl: string) {
     const body = message(input)
     const details = present(detailFields(input))
     const replySubject = encodeURIComponent(`Re: ${buildSubject(input)}`)
-    const preheader = `${name} sent a ${kindLabels[input.kind].toLowerCase()}${where ? ` for ${where}` : ''}.`
+    const isQuestion = input.kind === 'question'
+    const preheader = isQuestion
+        ? `${name} asked a question about ${where}.`
+        : `${name} sent a ${kindLabels[input.kind].toLowerCase()}${where ? ` for ${where}` : ''}.`
 
     const messageBlock = body
-        ? `${sectionHeading('Their message')}
+        ? `${sectionHeading(isQuestion ? 'Their question' : 'Their message')}
         <tr><td style="padding:16px 40px 28px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr><td style="background-color:${colors.oat};border-left:3px solid ${colors.goldDeep};padding:18px 22px;font-family:${serif};font-size:16px;line-height:26px;color:${colors.ink};white-space:pre-wrap;">${escapeHtml(body)}</td></tr>
@@ -172,7 +181,7 @@ function buildHtml(input: InquiryInput, siteUrl: string) {
         : ''
 
     const detailsBlock = details.length
-        ? `${sectionHeading('Trip details')}${fieldTable(details)}`
+        ? `${sectionHeading(isQuestion ? 'Question details' : 'Trip details')}${fieldTable(details)}`
         : ''
 
     return `<!doctype html>

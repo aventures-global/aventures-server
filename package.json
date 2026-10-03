@@ -13,7 +13,9 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
     "assets:webp": "tsx scripts/compress-images.ts",
-    "tours:backfill": "tsx scripts/backfill-tours.ts"
+    "tours:backfill": "tsx scripts/backfill-tours.ts",
+    "faqs:seed": "tsx scripts/seed-faqs.ts",
+    "faqs:sync": "tsx scripts/sync-faqs.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,6 +1,7 @@
 import { Router } from 'express'
 
 import cartRoutes from './cart.routes.js'
+import faqsRoutes from './faqs.routes.js'
 import inquiriesRoutes from './inquiries.routes.js'
 import meRoutes from './me.routes.js'
 import merchRoutes from './merch.routes.js'
@@ -15,6 +16,7 @@ apiRouter.use('/tours', toursRoutes)
 apiRouter.use('/merch', merchRoutes)
 apiRouter.use('/partners', partnersRoutes)
 apiRouter.use('/testimonials', testimonialsRoutes)
+apiRouter.use('/faqs', faqsRoutes)
 apiRouter.use('/me', meRoutes)
 apiRouter.use('/cart', cartRoutes)
 apiRouter.use('/uploads', uploadsRoutes)

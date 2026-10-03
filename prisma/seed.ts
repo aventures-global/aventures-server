@@ -10,6 +10,7 @@ import { testimonials } from '../../client/src/data/testimonials.ts'
 import { tours } from '../../client/src/data/tours.ts'
 
 import { compressImageFile } from '../src/lib/compressImage.js'
+import { seedFaqs } from './faqSeed.ts'
 import { parsePriceToCents } from '../src/lib/money.js'
 import { prisma } from '../src/lib/prisma.js'
 import { guessRegion } from '../src/lib/tourRegion.js'
@@ -234,6 +235,8 @@ async function main() {
             },
         })
     }
+
+    await seedFaqs(prisma)
 
     console.log(
         `Seeded ${tours.length} tours, ${merch.length} merch, ${partners.length} partners, ${testimonials.length} testimonials`,

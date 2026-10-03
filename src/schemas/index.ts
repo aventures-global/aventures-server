@@ -104,6 +104,28 @@ export const testimonialUpdateSchema = testimonialCreateSchema
     .partial()
     .omit({ id: true })
 
+export const faqCategoryCreateSchema = z.object({
+    name: z.string().trim().min(1).max(120),
+})
+
+export const faqCategoryUpdateSchema = faqCategoryCreateSchema
+
+export const faqCategoryReorderSchema = z.object({
+    ids: z.array(z.string().min(1)).min(1),
+})
+
+export const faqCreateSchema = z.object({
+    question: z.string().trim().min(1).max(500),
+    answer: z.string().trim().min(1).max(5000),
+    categoryIds: z.array(z.string().min(1)).default([]),
+})
+
+export const faqUpdateSchema = faqCreateSchema.partial()
+
+export const faqTopAddSchema = z.object({
+    faqId: z.string().min(1),
+})
+
 export const bootstrapSchema = z.object({
     email: z.string().email().nullable().optional(),
     firstName: z.string().trim().min(1).max(100).nullable().optional(),
@@ -146,11 +168,32 @@ const inquiryBase = {
     honeypot: z.string().max(500).optional(),
 }
 
+export const askVisaTypes = [
+    'U.S. Tourist Visa',
+    'U.S. Fiancé(e) Visa',
+    'U.S. K-2 Visa',
+    'U.S. J-1 Exchange Visitor Visa',
+    'U.S. R-1 Religious Worker Visa',
+    'U.S. R-2 Dependent Visa',
+    'U.S. P-1 Visa',
+    'U.S. P-2 Visa',
+    'U.S. E-2 Treaty Investor Visa',
+    'Not Sure Yet',
+    'General Travel Question',
+    'Other',
+] as const
+
 export const inquirySchema = z.discriminatedUnion('kind', [
     z.object({
         ...inquiryBase,
+        kind: z.literal('question'),
+        visaType: z.enum(askVisaTypes),
+        question: shortText(5000),
+    }),
+    z.object({
+        ...inquiryBase,
         kind: z.literal('contact'),
-        destination: optionalText(),
+        interest: optionalText(),
         message: shortText(5000),
     }),
     z.object({
