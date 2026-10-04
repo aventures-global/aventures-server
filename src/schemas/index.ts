@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { EXPERIENCE_COUNT, STORY_COUNT, TRAVEL_TIP_COUNT } from '../lib/tourContent.js'
 import { TOUR_REGIONS } from '../lib/tourRegion.js'
 
 const RESERVED_TOUR_SLUGS = new Set(['search'])
@@ -12,10 +13,11 @@ export const idParamSchema = z.object({
     id: z.string().min(1),
 })
 
-export const itineraryDaySchema = z.object({
-    day: z.number().int().positive(),
-    title: z.string().min(1),
-    description: z.string().min(1),
+export const tourExperienceSchema = z.object({
+    headline: z.string().min(1),
+    summary: z.string().min(1),
+    body: z.string().min(1),
+    image: z.string().min(1),
 })
 
 export const tourCreateSchema = z.object({
@@ -28,14 +30,10 @@ export const tourCreateSchema = z.object({
     tagline: z.string().min(1),
     shortDescription: z.string().min(1),
     coverImage: z.string().min(1),
-    gallery: z.array(z.string()).default([]),
-    duration: z.string().min(1),
-    startingPrice: z.string().min(1),
     location: z.string().min(1),
-    highlights: z.array(z.string()).default([]),
-    itinerary: z.array(itineraryDaySchema).default([]),
-    inclusions: z.array(z.string()).default([]),
-    exclusions: z.array(z.string()).default([]),
+    experiences: z.array(tourExperienceSchema).length(EXPERIENCE_COUNT),
+    storyTitles: z.array(z.string().min(1)).length(STORY_COUNT),
+    travelTips: z.array(z.string().min(1)).length(TRAVEL_TIP_COUNT),
     featured: z.boolean().default(false),
     region: z.enum(TOUR_REGIONS).default('other'),
 })

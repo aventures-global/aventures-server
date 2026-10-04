@@ -1,6 +1,7 @@
 import type { MerchProduct, Partner, Testimonial, Tour } from '../generated/prisma/client.js'
 
 import { formatMoney } from './money.js'
+import type { TourExperience } from './tourContent.js'
 
 export type TourDto = {
     id: string
@@ -9,14 +10,10 @@ export type TourDto = {
     tagline: string
     shortDescription: string
     coverImage: string
-    gallery: string[]
-    duration: string
-    startingPrice: string
     location: string
-    highlights: string[]
-    itinerary: { day: number; title: string; description: string }[]
-    inclusions: string[]
-    exclusions: string[]
+    experiences: TourExperience[]
+    storyTitles: string[]
+    travelTips: string[]
     featured: boolean
     region: string
     sortOrder: number
@@ -38,8 +35,8 @@ export type MerchDto = {
 }
 
 export function toTourDto(tour: Tour): TourDto {
-    const itinerary = Array.isArray(tour.itinerary)
-        ? (tour.itinerary as TourDto['itinerary'])
+    const experiences = Array.isArray(tour.experiences)
+        ? (tour.experiences as TourDto['experiences'])
         : []
 
     return {
@@ -49,14 +46,10 @@ export function toTourDto(tour: Tour): TourDto {
         tagline: tour.tagline,
         shortDescription: tour.shortDescription,
         coverImage: tour.coverImage,
-        gallery: tour.gallery,
-        duration: tour.duration,
-        startingPrice: tour.startingPrice,
         location: tour.location,
-        highlights: tour.highlights,
-        itinerary,
-        inclusions: tour.inclusions,
-        exclusions: tour.exclusions,
+        experiences,
+        storyTitles: tour.storyTitles,
+        travelTips: tour.travelTips,
         featured: tour.featured,
         region: tour.region,
         sortOrder: tour.sortOrder,

@@ -92,7 +92,7 @@ async function collectPaths() {
     const paths = new Set<string>()
     for (const tour of tours) {
         paths.add(tour.coverImage)
-        for (const image of tour.gallery) paths.add(image)
+        for (const experience of tour.experiences) paths.add(experience.image)
     }
     for (const product of merch) {
         paths.add(product.coverImage)
@@ -157,46 +157,33 @@ async function main() {
     }
 
     for (const [index, tour] of tours.entries()) {
-        const gallery = await Promise.all(
-            tour.gallery.map((image) => resolveAssetUrl(image, urlMap)),
+        const experiences = await Promise.all(
+            tour.experiences.map(async (experience) => ({
+                ...experience,
+                image: await resolveAssetUrl(experience.image, urlMap),
+            })),
         )
+        const content = {
+            slug: tour.slug,
+            title: tour.title,
+            tagline: tour.tagline,
+            shortDescription: tour.shortDescription,
+            coverImage: await resolveAssetUrl(tour.coverImage, urlMap),
+            location: tour.location,
+            experiences,
+            storyTitles: tour.storyTitles,
+            travelTips: tour.travelTips,
+            featured: tour.featured,
+        }
         await prisma.tour.upsert({
             where: { id: tour.id },
             create: {
                 id: tour.id,
-                slug: tour.slug,
-                title: tour.title,
-                tagline: tour.tagline,
-                shortDescription: tour.shortDescription,
-                coverImage: await resolveAssetUrl(tour.coverImage, urlMap),
-                gallery,
-                duration: tour.duration,
-                startingPrice: tour.startingPrice,
-                location: tour.location,
-                highlights: tour.highlights,
-                itinerary: tour.itinerary,
-                inclusions: tour.inclusions,
-                exclusions: tour.exclusions,
-                featured: tour.featured,
+                ...content,
                 region: guessRegion(tour.location),
                 sortOrder: index + 1,
             },
-            update: {
-                slug: tour.slug,
-                title: tour.title,
-                tagline: tour.tagline,
-                shortDescription: tour.shortDescription,
-                coverImage: await resolveAssetUrl(tour.coverImage, urlMap),
-                gallery,
-                duration: tour.duration,
-                startingPrice: tour.startingPrice,
-                location: tour.location,
-                highlights: tour.highlights,
-                itinerary: tour.itinerary,
-                inclusions: tour.inclusions,
-                exclusions: tour.exclusions,
-                featured: tour.featured,
-            },
+            update: content,
         })
     }
 

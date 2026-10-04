@@ -33,14 +33,10 @@ model Tour {
   tagline          String
   shortDescription String
   coverImage       String
-  gallery          String[]
-  duration         String
-  startingPrice    String
   location         String
-  highlights       String[]
-  itinerary        Json
-  inclusions       String[]
-  exclusions       String[]
+  experiences      Json     @default("[]")
+  storyTitles      String[] @default([])
+  travelTips       String[] @default([])
   featured         Boolean  @default(false)
   region           String   @default("other")
   sortOrder        Float    @default(0)
