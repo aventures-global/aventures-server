@@ -15,7 +15,7 @@ class InquiryService {
         const email = renderInquiryEmail(input, process.env.PUBLIC_SITE_URL?.trim() || DEFAULT_SITE_URL)
         try {
             await sendEmail({
-                replyTo: { name: `${input.firstName} ${input.lastName}`, address: input.email },
+                replyTo: { name: [input.firstName, input.lastName].filter(Boolean).join(' '), address: input.email },
                 ...email,
             })
         } catch (err) {

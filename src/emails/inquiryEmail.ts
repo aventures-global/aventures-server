@@ -19,13 +19,15 @@ const sans = "Poppins,'Segoe UI',Helvetica,Arial,sans-serif"
 const kindLabels: Record<InquiryInput['kind'], string> = {
     question: 'Ask AVENtures question',
     contact: 'Travel inquiry',
-    'custom-tour': 'Custom tour inquiry',
+    onboarding: 'Start Your AVENture inquiry',
     flights: 'Flight request',
     hotels: 'Hotel request',
     cars: 'Transfer request',
 }
 
 type Field = [label: string, value: string | undefined]
+type Section = [title: string, fields: Field[]]
+type OnboardingInput = Extract<InquiryInput, { kind: 'onboarding' }>
 
 function escapeHtml(value: string) {
     return value
@@ -37,7 +39,7 @@ function escapeHtml(value: string) {
 }
 
 function fullName(input: InquiryInput) {
-    return `${input.firstName} ${input.lastName}`
+    return [input.firstName, input.lastName].filter(Boolean).join(' ')
 }
 
 function place(input: InquiryInput) {
@@ -48,24 +50,93 @@ function place(input: InquiryInput) {
 
 function message(input: InquiryInput) {
     if (input.kind === 'question') return input.question
+    if (input.kind === 'onboarding') return undefined
     return input.kind === 'contact' ? input.message : input.notes
 }
 
-function detailFields(input: InquiryInput): Field[] {
+function travelersSummary(input: OnboardingInput) {
+    const adults = Number(input.adults)
+    const children = Number(input.children)
+    const counts = [
+        adults > 0 ? `${adults} adult${adults === 1 ? '' : 's'}` : '',
+        children > 0 ? `${children} child${children === 1 ? '' : 'ren'}` : '',
+    ].filter(Boolean)
+    return [input.group, counts.join(', ')].filter(Boolean).join(' · ')
+}
+
+function datesSummary(input: OnboardingInput) {
+    if (input.departure && input.returnDate) return `${input.departure} – ${input.returnDate}`
+    if (input.departure) return `From ${input.departure}`
+    return input.duration ?? ''
+}
+
+function onboardingHighlights(input: OnboardingInput): [string, string][] {
+    return present([
+        ['When', datesSummary(input) || 'Flexible'],
+        ['Who', travelersSummary(input)],
+        ['Budget', [input.budget, input.budgetType?.toLowerCase()].filter(Boolean).join(', ')],
+    ])
+}
+
+function onboardingSections(input: OnboardingInput): Section[] {
+    return [
+        ['The trip', [
+            ['Service', input.service],
+            ['Destination', input.destination],
+            ['Departure', input.departure],
+            ['Return', input.returnDate],
+            ['Trip length', input.duration],
+            ['Flexible dates', input.flexibleDates],
+        ]],
+        ['Travelers', [
+            ['Traveling as', input.group],
+            ['Adults', input.adults],
+            ['Children', input.children],
+            ['Group size', input.groupSize],
+        ]],
+        ['Budget', [
+            ['Range', input.budget],
+            ['Basis', input.budgetType],
+        ]],
+        ['Accommodation', [
+            ['Stay style', input.accommodation],
+            ['Priorities', input.accommodationNeeds],
+        ]],
+        ['Itinerary', [
+            ['Interests', input.interests],
+            ['Places in mind', input.hasPlans],
+            ['Places to visit', input.plannedPlaces],
+        ]],
+        ['Flights', [
+            ['Priority', input.flightPriority],
+            ['Cabin', input.cabin],
+            ['Baggage', input.baggage],
+        ]],
+        ['Transportation', [['Needs', input.transportation]]],
+        ['Visa assistance', [
+            ['Visa service', input.visaType],
+            ['Travel purpose', input.visaPurpose],
+            ['Current stage', input.visaStatus],
+            ['Passport status', input.passportStatus],
+            ['Passport expiry', input.passportExpiry],
+            ['Previous application', input.previousVisa],
+            ['Existing appointment', input.appointment],
+            ['Help needed', input.visaHelp],
+        ]],
+    ]
+}
+
+function detailSections(input: InquiryInput): Section[] {
+    if (input.kind === 'onboarding') return onboardingSections(input)
+    return [[input.kind === 'question' ? 'Question details' : 'Trip details', detailFields(input)]]
+}
+
+function detailFields(input: Exclude<InquiryInput, OnboardingInput>): Field[] {
     switch (input.kind) {
         case 'question':
             return [['Visa type', input.visaType]]
         case 'contact':
             return [['Looking for', input.interest]]
-        case 'custom-tour':
-            return [
-                ['Destination(s)', input.destination],
-                ['Travel dates', input.travelDates],
-                ['Travelers', input.travelers],
-                ['Preferred length', input.tripLength],
-                ['Flights', input.flights],
-                ['Also interested in', input.addOns],
-            ]
         case 'flights':
             return [
                 ['Origin', input.origin],
@@ -98,6 +169,7 @@ function contactFields(input: InquiryInput): Field[] {
         ['Name', fullName(input)],
         ['Email', input.email],
         ['Phone', input.phone],
+        ['Preferred contact', input.kind === 'onboarding' ? input.contactMethod : undefined],
     ]
 }
 
@@ -114,15 +186,14 @@ function buildSubject(input: InquiryInput) {
 }
 
 function buildText(input: InquiryInput) {
-    const header = present([
-        ...contactFields(input),
-        ['Service', kindLabels[input.kind]],
-        ...detailFields(input),
-    ])
-        .map(([label, value]) => `${label}: ${value}`)
-        .join('\n')
+    const lines = (fields: Field[]) => present(fields).map(([label, value]) => `${label}: ${value}`).join('\n')
+    const header = lines([...contactFields(input), ['Inquiry', kindLabels[input.kind]]])
+    const sections = detailSections(input)
+        .map(([title, fields]) => [title, lines(fields)] as const)
+        .filter(([, text]) => text)
+        .map(([title, text]) => `${title.toUpperCase()}\n${text}`)
     const body = message(input)
-    return body ? `${header}\n\n${body}` : header
+    return [header, ...sections, body].filter(Boolean).join('\n\n')
 }
 
 function eyebrow(text: string, color: string) {
@@ -147,7 +218,7 @@ function fieldRows(fields: [string, string][], linkEmail?: string) {
             return `
                 <tr>
                     <td width="38%" valign="top" style="padding:12px 0;${border}font-family:${sans};font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(22,55,101,0.65);">${escapeHtml(label)}</td>
-                    <td valign="top" style="padding:12px 0;${border}font-family:${sans};font-size:15px;line-height:22px;color:${colors.ink};">${content}</td>
+                    <td valign="top" style="padding:12px 0;${border}font-family:${sans};font-size:15px;line-height:22px;color:${colors.ink};white-space:pre-wrap;">${content}</td>
                 </tr>`
         })
         .join('')
@@ -160,11 +231,29 @@ function fieldTable(fields: [string, string][], linkEmail?: string) {
         </td></tr>`
 }
 
+function highlightStrip(highlights: [string, string][]) {
+    if (!highlights.length) return ''
+    const width = Math.floor(100 / highlights.length)
+    const cells = highlights
+        .map(([label, value], index) => `
+            <td width="${width}%" valign="top" style="padding:18px 16px;${index ? `border-left:1px solid rgba(225,178,29,0.35);` : ''}">
+                <p style="margin:0;font-family:${sans};font-size:10px;letter-spacing:2.4px;text-transform:uppercase;color:${colors.gold};">${escapeHtml(label)}</p>
+                <p style="margin:6px 0 0;font-family:${sans};font-size:14px;line-height:20px;color:${colors.cream};">${escapeHtml(value)}</p>
+            </td>`)
+        .join('')
+    return `
+        <tr><td style="padding:0 40px 34px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${colors.royal}" style="background-color:${colors.royal};"><tr>${cells}</tr></table>
+        </td></tr>`
+}
+
 function buildHtml(input: InquiryInput, siteUrl: string) {
     const name = fullName(input)
     const where = place(input)
     const body = message(input)
-    const details = present(detailFields(input))
+    const isOnboarding = input.kind === 'onboarding'
+    const byline = isOnboarding ? `from ${name} · ${input.service}` : `from ${name}`
+    const highlights = isOnboarding ? highlightStrip(onboardingHighlights(input)) : ''
     const replySubject = encodeURIComponent(`Re: ${buildSubject(input)}`)
     const isQuestion = input.kind === 'question'
     const preheader = isQuestion
@@ -180,9 +269,11 @@ function buildHtml(input: InquiryInput, siteUrl: string) {
         </td></tr>`
         : ''
 
-    const detailsBlock = details.length
-        ? `${sectionHeading(isQuestion ? 'Question details' : 'Trip details')}${fieldTable(details)}`
-        : ''
+    const detailsBlock = detailSections(input)
+        .map(([title, fields]) => [title, present(fields)] as const)
+        .filter(([, fields]) => fields.length)
+        .map(([title, fields]) => `${sectionHeading(title)}${fieldTable(fields)}`)
+        .join('')
 
     return `<!doctype html>
 <html lang="en">
@@ -209,8 +300,9 @@ function buildHtml(input: InquiryInput, siteUrl: string) {
 
         <tr><td style="padding:40px 40px 0;">${eyebrow(`New ${kindLabels[input.kind]}`, colors.royal)}</td></tr>
         <tr><td style="padding:12px 40px 0;font-family:${serif};font-size:30px;line-height:38px;color:${colors.ink};">${escapeHtml(where || 'A new conversation')}</td></tr>
-        <tr><td style="padding:6px 40px 0;font-family:${sans};font-size:15px;line-height:24px;color:rgba(11,11,11,0.65);">from ${escapeHtml(name)}</td></tr>
+        <tr><td style="padding:6px 40px 0;font-family:${sans};font-size:15px;line-height:24px;color:rgba(11,11,11,0.65);">${escapeHtml(byline)}</td></tr>
         <tr><td style="padding:22px 40px 32px;"><div style="height:1px;width:64px;background-color:${colors.goldDeep};line-height:1px;font-size:0;">&nbsp;</div></td></tr>
+        ${highlights}
 
         ${sectionHeading('Guest')}
         ${fieldTable(present(contactFields(input)), input.email)}
