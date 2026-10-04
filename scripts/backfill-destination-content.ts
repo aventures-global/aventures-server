@@ -48,6 +48,7 @@ async function main() {
         const images = tour.gallery.length ? tour.gallery : [tour.coverImage]
         const highlights = tour.highlights.length ? tour.highlights : [tour.tagline]
         const experiences = EXPERIENCE_CATEGORIES.map((category, index) => ({
+            eyebrow: category.label,
             headline: highlights[index % highlights.length],
             summary: category.summary,
             body: defaultExperienceBody(tour.location),

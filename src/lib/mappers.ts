@@ -1,7 +1,7 @@
 import type { MerchProduct, Partner, Testimonial, Tour } from '../generated/prisma/client.js'
 
 import { formatMoney } from './money.js'
-import type { TourExperience } from './tourContent.js'
+import { LEGACY_EXPERIENCE_EYEBROWS, type TourExperience } from './tourContent.js'
 
 export type TourDto = {
     id: string
@@ -36,7 +36,13 @@ export type MerchDto = {
 
 export function toTourDto(tour: Tour): TourDto {
     const experiences = Array.isArray(tour.experiences)
-        ? (tour.experiences as TourDto['experiences'])
+        ? (tour.experiences as Partial<TourExperience>[]).map((experience, index) => ({
+              eyebrow: experience.eyebrow || (LEGACY_EXPERIENCE_EYEBROWS[index] ?? `Section ${index + 1}`),
+              headline: experience.headline ?? '',
+              summary: experience.summary ?? '',
+              body: experience.body ?? '',
+              image: experience.image ?? '',
+          }))
         : []
 
     return {

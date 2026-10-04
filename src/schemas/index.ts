@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { EXPERIENCE_COUNT, STORY_COUNT, TRAVEL_TIP_COUNT } from '../lib/tourContent.js'
+import { STORY_COUNT, TRAVEL_TIP_COUNT } from '../lib/tourContent.js'
 import { TOUR_REGIONS } from '../lib/tourRegion.js'
 
 const RESERVED_TOUR_SLUGS = new Set(['search'])
@@ -14,6 +14,7 @@ export const idParamSchema = z.object({
 })
 
 export const tourExperienceSchema = z.object({
+    eyebrow: z.string().min(1),
     headline: z.string().min(1),
     summary: z.string().min(1),
     body: z.string().min(1),
@@ -31,7 +32,7 @@ export const tourCreateSchema = z.object({
     shortDescription: z.string().min(1),
     coverImage: z.string().min(1),
     location: z.string().min(1),
-    experiences: z.array(tourExperienceSchema).length(EXPERIENCE_COUNT),
+    experiences: z.array(tourExperienceSchema).min(1),
     storyTitles: z.array(z.string().min(1)).length(STORY_COUNT),
     travelTips: z.array(z.string().min(1)).length(TRAVEL_TIP_COUNT),
     featured: z.boolean().default(false),
