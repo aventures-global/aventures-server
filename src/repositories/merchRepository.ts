@@ -1,26 +1,30 @@
 import type { Prisma } from '../generated/prisma/client.js'
 
+import { MERCH_INCLUDE } from '../lib/mappers.js'
 import { prisma } from '../lib/prisma.js'
 
 class MerchRepository {
     async findAll() {
-        return prisma.merchProduct.findMany({ orderBy: { name: 'asc' } })
+        return prisma.merchProduct.findMany({
+            include: MERCH_INCLUDE,
+            orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
+        })
     }
 
     async findBySlug(slug: string) {
-        return prisma.merchProduct.findUnique({ where: { slug } })
+        return prisma.merchProduct.findUnique({ where: { slug }, include: MERCH_INCLUDE })
     }
 
     async findById(id: string) {
-        return prisma.merchProduct.findUnique({ where: { id } })
+        return prisma.merchProduct.findUnique({ where: { id }, include: MERCH_INCLUDE })
     }
 
-    async create(data: Prisma.MerchProductCreateInput) {
-        return prisma.merchProduct.create({ data })
+    async create(data: Prisma.MerchProductUncheckedCreateInput) {
+        return prisma.merchProduct.create({ data, include: MERCH_INCLUDE })
     }
 
-    async updateBySlug(slug: string, data: Prisma.MerchProductUpdateInput) {
-        return prisma.merchProduct.update({ where: { slug }, data })
+    async updateBySlug(slug: string, data: Prisma.MerchProductUncheckedUpdateInput) {
+        return prisma.merchProduct.update({ where: { slug }, data, include: MERCH_INCLUDE })
     }
 
     async deleteBySlug(slug: string) {

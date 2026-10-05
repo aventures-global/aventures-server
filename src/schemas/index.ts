@@ -88,7 +88,7 @@ export const merchCreateSchema = z.object({
     description: z.string().min(1),
     priceCents: z.number().int().nonnegative(),
     currency: z.string().default('USD'),
-    category: z.string().min(1),
+    categoryId: z.string().min(1),
     coverImage: z.string().min(1),
     gallery: z.array(z.string()).default([]),
     sizes: z.array(z.string()).default([]),
@@ -96,6 +96,16 @@ export const merchCreateSchema = z.object({
 })
 
 export const merchUpdateSchema = merchCreateSchema.partial().omit({ id: true })
+
+export const merchCategoryCreateSchema = z.object({
+    name: z.string().trim().min(1).max(60),
+})
+
+export const merchCategoryUpdateSchema = merchCategoryCreateSchema
+
+export const merchCategoryReorderSchema = z.object({
+    ids: z.array(z.string().min(1)).min(1),
+})
 
 export const partnerCreateSchema = z.object({
     id: z.string().min(1).optional(),

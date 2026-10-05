@@ -1,10 +1,11 @@
+import { MERCH_INCLUDE } from '../lib/mappers.js'
 import { prisma } from '../lib/prisma.js'
 
 class CartRepository {
     async findByUserId(userId: string) {
         return prisma.cartItem.findMany({
             where: { userId },
-            include: { merchProduct: true },
+            include: { merchProduct: { include: MERCH_INCLUDE } },
             orderBy: { createdAt: 'asc' },
         })
     }
@@ -12,7 +13,7 @@ class CartRepository {
     async findByIdForUser(id: string, userId: string) {
         return prisma.cartItem.findFirst({
             where: { id, userId },
-            include: { merchProduct: true },
+            include: { merchProduct: { include: MERCH_INCLUDE } },
         })
     }
 
@@ -32,7 +33,7 @@ class CartRepository {
     }) {
         return prisma.cartItem.create({
             data,
-            include: { merchProduct: true },
+            include: { merchProduct: { include: MERCH_INCLUDE } },
         })
     }
 
@@ -40,7 +41,7 @@ class CartRepository {
         return prisma.cartItem.update({
             where: { id },
             data: { qty },
-            include: { merchProduct: true },
+            include: { merchProduct: { include: MERCH_INCLUDE } },
         })
     }
 

@@ -14,6 +14,7 @@ import { seedFaqs } from './faqSeed.ts'
 import { seedVisaCatalog } from './visaSeed.ts'
 import { parsePriceToCents } from '../src/lib/money.js'
 import { prisma } from '../src/lib/prisma.js'
+import { slugify } from '../src/lib/slug.js'
 import { guessRegion } from '../src/lib/tourRegion.js'
 import { buildTourSearchText } from '../src/lib/tourSearchText.js'
 import { isR2Configured, putObject, publicUrlForKey } from '../src/lib/storage.js'
@@ -190,7 +191,20 @@ async function main() {
         })
     }
 
+    const categoryNames = [...new Set(merch.map((product) => product.category))]
+    for (const [index, name] of categoryNames.entries()) {
+        await prisma.merchCategory.upsert({
+            where: { name },
+            create: { id: slugify(name), name, sortOrder: index },
+            update: {},
+        })
+    }
+    const categoryIds = new Map(
+        (await prisma.merchCategory.findMany()).map((category) => [category.name, category.id]),
+    )
+
     for (const product of merch) {
+        const categoryId = categoryIds.get(product.category)!
         const gallery = await Promise.all(
             product.gallery.map((image) => resolveAssetUrl(image, urlMap)),
         )
@@ -204,7 +218,7 @@ async function main() {
                 description: product.description,
                 priceCents: parsePriceToCents(product.price),
                 currency: 'USD',
-                category: product.category,
+                categoryId,
                 coverImage: await resolveAssetUrl(product.coverImage, urlMap),
                 gallery,
                 sizes: product.sizes ?? [],
@@ -217,7 +231,7 @@ async function main() {
                 description: product.description,
                 priceCents: parsePriceToCents(product.price),
                 currency: 'USD',
-                category: product.category,
+                categoryId,
                 coverImage: await resolveAssetUrl(product.coverImage, urlMap),
                 gallery,
                 sizes: product.sizes ?? [],

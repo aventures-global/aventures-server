@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express'
 
+import MerchCategoryService from '../services/merchCategoryService.js'
 import MerchService from '../services/merchService.js'
 
 class MerchController {
@@ -25,6 +26,28 @@ class MerchController {
 
     async deleteBySlug(req: Request, res: Response) {
         await MerchService.deleteBySlug(String(req.params.slug))
+        res.status(204).send()
+    }
+
+    async listCategories(_req: Request, res: Response) {
+        res.json(await MerchCategoryService.list())
+    }
+
+    async createCategory(req: Request, res: Response) {
+        res.status(201).json(await MerchCategoryService.create(req.body))
+    }
+
+    async renameCategory(req: Request, res: Response) {
+        res.json(await MerchCategoryService.rename(String(req.params.id), req.body))
+    }
+
+    async deleteCategory(req: Request, res: Response) {
+        await MerchCategoryService.delete(String(req.params.id))
+        res.status(204).send()
+    }
+
+    async reorderCategories(req: Request, res: Response) {
+        await MerchCategoryService.reorder(req.body)
         res.status(204).send()
     }
 }

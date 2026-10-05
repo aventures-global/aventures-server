@@ -1,4 +1,4 @@
-import type { MerchProduct, Partner, Testimonial, Tour } from '../generated/prisma/client.js'
+import type { MerchCategory, MerchProduct, Partner, Testimonial, Tour } from '../generated/prisma/client.js'
 
 import { formatMoney } from './money.js'
 import { LEGACY_EXPERIENCE_EYEBROWS, type TourExperience } from './tourContent.js'
@@ -44,6 +44,9 @@ export type MerchDto = {
     tagline: string
     description: string
     price: string
+    priceCents: number
+    currency: string
+    categoryId: string
     category: string
     coverImage: string
     gallery: string[]
@@ -84,7 +87,20 @@ export function toTourListDto(tour: TourListRow): TourListDto {
     return { ...tour, updatedAt: tour.updatedAt.toISOString() }
 }
 
-export function toMerchDto(product: MerchProduct): MerchDto {
+export type MerchProductWithCategory = MerchProduct & { category: MerchCategory }
+
+export const MERCH_INCLUDE = { category: true } as const
+
+export function toMerchCategoryDto(category: MerchCategory & { _count: { products: number } }) {
+    return {
+        id: category.id,
+        name: category.name,
+        sortOrder: category.sortOrder,
+        productCount: category._count.products,
+    }
+}
+
+export function toMerchDto(product: MerchProductWithCategory): MerchDto {
     return {
         id: product.id,
         slug: product.slug,
@@ -92,7 +108,10 @@ export function toMerchDto(product: MerchProduct): MerchDto {
         tagline: product.tagline,
         description: product.description,
         price: formatMoney(product.priceCents, product.currency),
-        category: product.category,
+        priceCents: product.priceCents,
+        currency: product.currency,
+        categoryId: product.categoryId,
+        category: product.category.name,
         coverImage: product.coverImage,
         gallery: product.gallery,
         ...(product.sizes.length > 0 ? { sizes: product.sizes } : {}),

@@ -66,15 +66,30 @@ model MerchProduct {
   tagline     String
   description String
   priceCents  Int
-  currency    String     @default("USD")
-  category    String
+  currency    String        @default("USD")
+  categoryId  String
+  category    MerchCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   coverImage  String
   gallery     String[]
-  sizes       String[]   @default([])
-  inStock     Boolean    @default(true)
+  sizes       String[]      @default([])
+  inStock     Boolean       @default(true)
   cartItems   CartItem[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([categoryId])
+}
+
+/// `id` is a stable key derived from the first name (e.g. "photography"); renaming only changes `name`.
+model MerchCategory {
+  id        String         @id
+  name      String         @unique
+  sortOrder Int            @default(0)
+  products  MerchProduct[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([sortOrder])
 }
 
 model Partner {
