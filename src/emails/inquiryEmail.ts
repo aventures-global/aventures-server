@@ -19,6 +19,7 @@ const sans = "Poppins,'Segoe UI',Helvetica,Arial,sans-serif"
 const kindLabels: Record<InquiryInput['kind'], string> = {
     question: 'Ask AVENtures question',
     contact: 'Travel inquiry',
+    consultation: 'Consultation request',
     onboarding: 'Start Your AVENture inquiry',
     flights: 'Flight request',
     hotels: 'Hotel request',
@@ -45,13 +46,15 @@ function fullName(input: InquiryInput) {
 function place(input: InquiryInput) {
     if (input.kind === 'question') return input.visaType
     if (input.kind === 'contact') return input.interest
+    if (input.kind === 'consultation') return input.service
     return input.kind === 'cars' ? input.pickup : input.destination
 }
 
 function message(input: InquiryInput) {
     if (input.kind === 'question') return input.question
     if (input.kind === 'onboarding') return undefined
-    return input.kind === 'contact' ? input.message : input.notes
+    if (input.kind === 'contact' || input.kind === 'consultation') return input.message
+    return input.notes
 }
 
 function travelersSummary(input: OnboardingInput) {
@@ -137,6 +140,8 @@ function detailFields(input: Exclude<InquiryInput, OnboardingInput>): Field[] {
             return [['Visa type', input.visaType]]
         case 'contact':
             return [['Looking for', input.interest]]
+        case 'consultation':
+            return [['Service', input.service]]
         case 'flights':
             return [
                 ['Origin', input.origin],

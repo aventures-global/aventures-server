@@ -198,6 +198,13 @@ export const inquirySchema = z.discriminatedUnion('kind', [
     z.object({
         ...inquiryBase,
         lastName: optionalText(100),
+        kind: z.literal('consultation'),
+        service: optionalText(),
+        message: shortText(5000),
+    }),
+    z.object({
+        ...inquiryBase,
+        lastName: optionalText(100),
         kind: z.literal('onboarding'),
         contactMethod: optionalText(100),
         service: shortText(),
