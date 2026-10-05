@@ -14,6 +14,7 @@ import { seedFaqs } from './faqSeed.ts'
 import { parsePriceToCents } from '../src/lib/money.js'
 import { prisma } from '../src/lib/prisma.js'
 import { guessRegion } from '../src/lib/tourRegion.js'
+import { buildTourSearchText } from '../src/lib/tourSearchText.js'
 import { isR2Configured, putObject, publicUrlForKey } from '../src/lib/storage.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -174,6 +175,7 @@ async function main() {
             storyTitles: tour.storyTitles,
             travelTips: tour.travelTips,
             featured: tour.featured,
+            searchText: buildTourSearchText({ ...tour, experiences }),
         }
         await prisma.tour.upsert({
             where: { id: tour.id },

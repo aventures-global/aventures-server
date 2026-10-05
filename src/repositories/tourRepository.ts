@@ -1,5 +1,6 @@
 import type { Prisma } from '../generated/prisma/client.js'
 
+import { TOUR_LIST_SELECT } from '../lib/mappers.js'
 import { prisma } from '../lib/prisma.js'
 
 const DISPLAY_ORDER: Prisma.TourOrderByWithRelationInput[] = [{ sortOrder: 'asc' }, { id: 'asc' }]
@@ -23,10 +24,17 @@ class TourRepository {
         take: number
     }) {
         const [items, total] = await prisma.$transaction([
-            prisma.tour.findMany(input),
+            prisma.tour.findMany({ ...input, select: TOUR_LIST_SELECT }),
             prisma.tour.count({ where: input.where }),
         ])
         return { items, total }
+    }
+
+    async findForSuggest() {
+        return prisma.tour.findMany({
+            orderBy: DISPLAY_ORDER,
+            select: { ...TOUR_LIST_SELECT, lat: true, lng: true },
+        })
     }
 
     async findBySlug(slug: string) {

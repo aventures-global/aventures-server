@@ -20,6 +20,23 @@ export type TourDto = {
     updatedAt: string
 }
 
+export const TOUR_LIST_SELECT = {
+    id: true,
+    slug: true,
+    title: true,
+    tagline: true,
+    coverImage: true,
+    location: true,
+    featured: true,
+    region: true,
+    sortOrder: true,
+    updatedAt: true,
+} as const
+
+export type TourListRow = Pick<Tour, keyof typeof TOUR_LIST_SELECT>
+
+export type TourListDto = Omit<TourListRow, 'updatedAt'> & { updatedAt: string }
+
 export type MerchDto = {
     id: string
     slug: string
@@ -61,6 +78,10 @@ export function toTourDto(tour: Tour): TourDto {
         sortOrder: tour.sortOrder,
         updatedAt: tour.updatedAt.toISOString(),
     }
+}
+
+export function toTourListDto(tour: TourListRow): TourListDto {
+    return { ...tour, updatedAt: tour.updatedAt.toISOString() }
 }
 
 export function toMerchDto(product: MerchProduct): MerchDto {

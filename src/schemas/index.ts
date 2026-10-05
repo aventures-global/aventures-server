@@ -54,6 +54,11 @@ export const tourMoveSchema = z
 export const tourSearchSchema = z.object({
     q: z.string().trim().max(200).default(''),
     region: z.enum([...TOUR_REGIONS, 'all']).default('all'),
+    regions: z
+        .string()
+        .optional()
+        .transform((value) => (value ? value.split(',').map((item) => item.trim()).filter(Boolean) : []))
+        .pipe(z.array(z.enum(TOUR_REGIONS))),
     featured: z
         .enum(['true', 'false'])
         .optional()
@@ -62,6 +67,10 @@ export const tourSearchSchema = z.object({
     dir: z.enum(['asc', 'desc']).default('asc'),
     cursor: z.coerce.number().int().min(0).default(0),
     limit: z.coerce.number().int().min(1).max(50).default(12),
+})
+
+export const tourSuggestSchema = z.object({
+    q: z.string().trim().min(3, 'Query must be at least 3 characters').max(80),
 })
 
 export const merchCreateSchema = z.object({

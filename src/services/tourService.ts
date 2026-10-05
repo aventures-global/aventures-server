@@ -1,6 +1,11 @@
 import type { Prisma } from '../generated/prisma/client.js'
 import { AppError } from '../lib/errors.js'
-import { toTourDto } from '../lib/mappers.js'
+import { correctQuery, fuzzyScore, splitWords } from '../lib/fuzzy.js'
+import { geocode } from '../lib/geocoder.js'
+import { haversineKm } from '../lib/geo.js'
+import { toTourDto, toTourListDto } from '../lib/mappers.js'
+import { resolveTourCoords } from '../lib/tourCoords.js'
+import { buildTourSearchText } from '../lib/tourSearchText.js'
 import TourRepository from '../repositories/tourRepository.js'
 import type {
     tourCreateSchema,
@@ -13,8 +18,30 @@ import type { z } from 'zod'
 type SearchInput = z.infer<typeof tourSearchSchema>
 
 const MIN_GAP = 1e-6
+/** Places farther than this from every tour get no "closest journeys" suggestions. */
+const NEARBY_MAX_KM = 1500
+const SPELLING_MIN_SCORE = 0.7
+const MAX_SUGGESTIONS = 3
+/** Descriptive words shared by many tours, so they must not drive a "did you mean". */
+const GENERIC_WORDS = new Set([
+    'and', 'the', 'of', 'tour', 'tours', 'island', 'islands', 'coast', 'city', 'cities', 'life',
+    'surf', 'hills', 'river', 'shore', 'lagoons', 'limestone', 'highlands', 'seasons', 'north',
+    'countryside', 'journeys', 'discovery', 'escape', 'calling', 'serenity', 'surrounds',
+])
 
-const SEARCH_FIELDS = ['title', 'tagline', 'shortDescription', 'location', 'slug'] as const
+async function coordsOrNull(location: string) {
+    try {
+        return await resolveTourCoords(location)
+    } catch {
+        return null
+    }
+}
+
+function spellingText(tour: { title: string; location: string; slug: string }) {
+    return splitWords(`${tour.title} ${tour.location} ${tour.slug}`)
+        .filter((word) => !GENERIC_WORDS.has(word))
+        .join(' ')
+}
 
 function searchOrder(sort: SearchInput['sort'], dir: SearchInput['dir']) {
     const order: Prisma.TourOrderByWithRelationInput[] = (() => {
@@ -39,13 +66,13 @@ function searchOrder(sort: SearchInput['sort'], dir: SearchInput['dir']) {
 
 function searchWhere(input: SearchInput): Prisma.TourWhereInput {
     const tokens = input.q.split(/\s+/).filter(Boolean)
+    const regions = input.regions.length > 0 ? input.regions : input.region !== 'all' ? [input.region] : []
     return {
-        ...(input.region !== 'all' ? { region: input.region } : {}),
+        ...(regions.length === 1 ? { region: regions[0] } : {}),
+        ...(regions.length > 1 ? { region: { in: regions } } : {}),
         ...(input.featured ? { featured: true } : {}),
         AND: tokens.map((token) => ({
-            OR: SEARCH_FIELDS.map((field) => ({
-                [field]: { contains: token, mode: 'insensitive' as const },
-            })),
+            searchText: { contains: token, mode: 'insensitive' as const },
         })),
     }
 }
@@ -60,10 +87,74 @@ class TourService {
         })
         const next = input.cursor + items.length
         return {
-            items: items.map(toTourDto),
+            items: items.map(toTourListDto),
             nextCursor: next < total && items.length > 0 ? next : null,
             total,
         }
+    }
+
+    /**
+     * Fallback for searches with no results: tours whose names are a close spelling of
+     * `q`, otherwise tours in the same country as the place `q` geocodes to, otherwise
+     * tours within NEARBY_MAX_KM of it.
+     */
+    async suggest(q: string) {
+        const tours = await TourRepository.findForSuggest()
+        const spellQuery = splitWords(q).filter((word) => !GENERIC_WORDS.has(word)).join(' ')
+
+        const spelled = tours
+            .map((tour) => ({ tour, score: fuzzyScore(spellQuery, spellingText(tour)) }))
+            .filter((entry) => entry.score >= SPELLING_MIN_SCORE)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, MAX_SUGGESTIONS)
+        if (spelled.length > 0) {
+            return {
+                kind: 'spelling' as const,
+                suggestion: correctQuery(spellQuery, spellingText(spelled[0].tour)),
+                matches: spelled.map(({ tour: { lat, lng, ...tour } }) => toTourListDto(tour)),
+            }
+        }
+
+        const place = await geocode(q)
+        if (place) {
+            const measured = tours
+                .flatMap(({ lat, lng, ...tour }) =>
+                    lat === null || lng === null
+                        ? []
+                        : [{ tour, distanceKm: haversineKm(place.lat, place.lng, lat, lng) }],
+                )
+                .sort((a, b) => a.distanceKm - b.distanceKm)
+
+            const country = place.country?.toLowerCase()
+            const inCountry = country
+                ? measured.filter(({ tour }) => tour.location.toLowerCase().includes(country))
+                : []
+            if (inCountry.length > 0) {
+                return {
+                    kind: 'covered' as const,
+                    place: q.trim(),
+                    country: place.country!,
+                    isCountry: place.placeType === 'country',
+                    matches: inCountry.slice(0, MAX_SUGGESTIONS).map(({ tour }) => toTourListDto(tour)),
+                }
+            }
+
+            const nearby = measured
+                .filter((entry) => entry.distanceKm <= NEARBY_MAX_KM)
+                .slice(0, MAX_SUGGESTIONS)
+            if (nearby.length > 0) {
+                return {
+                    kind: 'nearby' as const,
+                    place: q.trim(),
+                    matches: nearby.map(({ tour, distanceKm }) => ({
+                        ...toTourListDto(tour),
+                        distanceKm: Math.round(distanceKm),
+                    })),
+                }
+            }
+        }
+
+        return { kind: 'none' as const }
     }
 
     async move(slug: string, input: z.infer<typeof tourMoveSchema>) {
@@ -141,13 +232,31 @@ class TourService {
             featured: input.featured,
             region: input.region,
             sortOrder: (await TourRepository.maxSortOrder()) + 1,
+            searchText: buildTourSearchText(input),
+            ...(await coordsOrNull(input.location)),
         })
         return toTourDto(tour)
     }
 
     async updateBySlug(slug: string, input: z.infer<typeof tourUpdateSchema>) {
-        await this.getBySlug(slug)
+        const existing = await TourRepository.findBySlug(slug)
+        if (!existing) {
+            throw new AppError(404, 'NOT_FOUND', 'Tour not found')
+        }
+        const current = toTourDto(existing)
+        const locationChanged = input.location !== undefined && input.location !== existing.location
+        const coords = locationChanged ? await coordsOrNull(input.location!) : undefined
         const tour = await TourRepository.updateBySlug(slug, {
+            ...(locationChanged ? { lat: coords?.lat ?? null, lng: coords?.lng ?? null } : {}),
+            searchText: buildTourSearchText({
+                title: input.title ?? current.title,
+                tagline: input.tagline ?? current.tagline,
+                shortDescription: input.shortDescription ?? current.shortDescription,
+                location: input.location ?? current.location,
+                slug: input.slug ?? current.slug,
+                storyTitles: input.storyTitles ?? current.storyTitles,
+                experiences: input.experiences ?? current.experiences,
+            }),
             ...(input.slug !== undefined ? { slug: input.slug } : {}),
             ...(input.title !== undefined ? { title: input.title } : {}),
             ...(input.tagline !== undefined ? { tagline: input.tagline } : {}),

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 
 import { AppError } from '../lib/errors.js'
-import { tourSearchSchema } from '../schemas/index.js'
+import { tourSearchSchema, tourSuggestSchema } from '../schemas/index.js'
 import TourService from '../services/tourService.js'
 
 class TourController {
@@ -25,6 +25,18 @@ class TourController {
             )
         }
         res.json(await TourService.search(parsed.data))
+    }
+
+    async suggest(req: Request, res: Response) {
+        const parsed = tourSuggestSchema.safeParse(req.query)
+        if (!parsed.success) {
+            throw new AppError(
+                400,
+                'VALIDATION_ERROR',
+                parsed.error.issues.map((issue) => issue.message).join('; ') || 'Invalid query',
+            )
+        }
+        res.json(await TourService.suggest(parsed.data.q))
     }
 
     async move(req: Request, res: Response) {
