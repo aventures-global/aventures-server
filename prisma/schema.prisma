@@ -137,6 +137,16 @@ model FaqTopEntry {
   @@index([position])
 }
 
+/// Single row (`id = "catalog"`) holding the public visa pages, services, checklists, and finder.
+model VisaCatalog {
+  id        String   @id
+  pages     Json
+  services  Json
+  finder    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model CartItem {
   id             String       @id @default(cuid())
   userId         String

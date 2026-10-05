@@ -2,6 +2,13 @@ import { z } from 'zod'
 
 import { STORY_COUNT, TRAVEL_TIP_COUNT } from '../lib/tourContent.js'
 import { TOUR_REGIONS } from '../lib/tourRegion.js'
+import {
+    EXPLORE_LINK_IDS,
+    FINDER_PATH_IDS,
+    READINESS_IDS,
+    VISA_IDS,
+    VISA_PAGE_SLUGS,
+} from '../lib/visaContent.js'
 
 const RESERVED_TOUR_SLUGS = new Set(['search'])
 
@@ -134,6 +141,104 @@ export const faqTopAddSchema = z.object({
     faqId: z.string().min(1),
 })
 
+export const askVisaTypes = [
+    'U.S. Tourist Visa',
+    'U.S. Fiancé(e) Visa',
+    'U.S. K-2 Visa',
+    'U.S. J-1 Exchange Visitor Visa',
+    'U.S. R-1 Religious Worker Visa',
+    'U.S. R-2 Dependent Visa',
+    'U.S. P-1 Visa',
+    'U.S. P-2 Visa',
+    'U.S. E-2 Treaty Investor Visa',
+    'Not Sure Yet',
+    'General Travel Question',
+    'Other',
+] as const
+
+const visaText = (max: number) => z.string().trim().min(1, 'Text cannot be empty').max(max)
+const optionId = z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9-]+$/, 'Option ids use lowercase letters, numbers, and dashes')
+    .max(60)
+
+function uniqueIds(options: { id: string }[]) {
+    return new Set(options.map((option) => option.id)).size === options.length
+}
+
+export const visaPageSlugParamSchema = z.object({ slug: z.enum(VISA_PAGE_SLUGS) })
+export const visaIdParamSchema = z.object({ id: z.enum(VISA_IDS) })
+
+export const visaPageUpdateSchema = z.object({
+    title: visaText(160).optional(),
+    description: visaText(400).optional(),
+})
+
+export const visaChecklistSchema = z.object({
+    tagline: visaText(200),
+    intro: z.string().trim().max(1000),
+    groups: z
+        .array(z.object({ title: visaText(160), items: z.array(visaText(500)).min(1).max(40) }))
+        .min(1)
+        .max(12),
+    reminder: visaText(2000),
+})
+
+export const visaServiceUpdateSchema = z
+    .object({
+        title: visaText(120),
+        shortLabel: visaText(60),
+        description: visaText(600),
+        anchor: optionId,
+        category: visaText(40),
+        askVisaType: z.enum(askVisaTypes),
+        faqCategoryId: z.string().min(1).nullable(),
+        introFaqId: z.string().min(1).nullable(),
+        qualifyFaqId: z.string().min(1).nullable(),
+        checklist: visaChecklistSchema,
+        checklistPdf: z.object({ href: visaText(1000), downloadName: visaText(200) }),
+    })
+    .partial()
+
+const roleQuestionSchema = z.object({
+    title: visaText(300),
+    options: z
+        .array(z.object({ id: optionId, label: visaText(300), visa: z.enum(VISA_IDS).nullable() }))
+        .min(1)
+        .max(12)
+        .refine(uniqueIds, 'Each answer needs a different id'),
+})
+
+const readinessQuestionSchema = z.object({
+    title: visaText(300),
+    options: z
+        .array(z.object({ id: z.enum(READINESS_IDS), label: visaText(200) }))
+        .length(READINESS_IDS.length)
+        .refine(uniqueIds, 'Each readiness answer must appear once'),
+})
+
+const readinessNotesSchema = z.record(z.enum(READINESS_IDS), visaText(600))
+
+export const visaFinderUpdateSchema = z
+    .object({
+        eyebrow: visaText(60),
+        heading: visaText(160),
+        disclaimer: visaText(600),
+        purpose: z.object({
+            title: visaText(300),
+            options: z.array(z.object({ id: optionId, label: visaText(300) })).min(1),
+        }),
+        roles: z.record(z.enum(FINDER_PATH_IDS), roleQuestionSchema),
+        readiness: z.record(z.enum(VISA_IDS), readinessQuestionSchema),
+        notes: readinessNotesSchema,
+        touristNotes: readinessNotesSchema,
+        exploreLinks: z.array(
+            z.object({ id: z.enum(EXPLORE_LINK_IDS), label: visaText(80), note: visaText(300) }),
+        ),
+    })
+    .partial()
+
 export const bootstrapSchema = z.object({
     email: z.string().email().nullable().optional(),
     firstName: z.string().trim().min(1).max(100).nullable().optional(),
@@ -175,21 +280,6 @@ const inquiryBase = {
     phone: optionalText(40),
     honeypot: z.string().max(500).optional(),
 }
-
-export const askVisaTypes = [
-    'U.S. Tourist Visa',
-    'U.S. Fiancé(e) Visa',
-    'U.S. K-2 Visa',
-    'U.S. J-1 Exchange Visitor Visa',
-    'U.S. R-1 Religious Worker Visa',
-    'U.S. R-2 Dependent Visa',
-    'U.S. P-1 Visa',
-    'U.S. P-2 Visa',
-    'U.S. E-2 Treaty Investor Visa',
-    'Not Sure Yet',
-    'General Travel Question',
-    'Other',
-] as const
 
 export const inquirySchema = z.discriminatedUnion('kind', [
     z.object({

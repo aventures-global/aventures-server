@@ -9,6 +9,7 @@ import partnersRoutes from './partners.routes.js'
 import testimonialsRoutes from './testimonials.routes.js'
 import toursRoutes from './tours.routes.js'
 import uploadsRoutes from './uploads.routes.js'
+import visaRoutes from './visa.routes.js'
 
 const apiRouter = Router()
 
@@ -17,6 +18,7 @@ apiRouter.use('/merch', merchRoutes)
 apiRouter.use('/partners', partnersRoutes)
 apiRouter.use('/testimonials', testimonialsRoutes)
 apiRouter.use('/faqs', faqsRoutes)
+apiRouter.use('/visa', visaRoutes)
 apiRouter.use('/me', meRoutes)
 apiRouter.use('/cart', cartRoutes)
 apiRouter.use('/uploads', uploadsRoutes)

@@ -17,8 +17,18 @@ class UploadService {
         folder?: string
     }) {
         const mimeType = input.mimeType.toLowerCase()
+        if (mimeType === 'application/pdf') {
+            if (input.buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
+                throw new AppError(400, 'INVALID_FILE', 'This file is not a valid PDF')
+            }
+            return putObject({
+                key: buildUploadKey(input.folder ?? 'uploads', 'pdf'),
+                body: input.buffer,
+                contentType: 'application/pdf',
+            })
+        }
         if (!ALLOWED.has(mimeType) && !mimeType.includes('svg')) {
-            throw new AppError(400, 'INVALID_FILE', 'Only jpeg, png, webp, and svg are allowed')
+            throw new AppError(400, 'INVALID_FILE', 'Only jpeg, png, webp, svg, and pdf are allowed')
         }
 
         const compressed = await compressImage(input.buffer, mimeType)

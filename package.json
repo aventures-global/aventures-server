@@ -20,7 +20,9 @@
     "tours:geo-columns": "tsx scripts/add-geo-columns.ts",
     "tours:backfill-coords": "tsx scripts/backfill-tour-coords.ts",
     "faqs:seed": "tsx scripts/seed-faqs.ts",
-    "faqs:sync": "tsx scripts/sync-faqs.ts"
+    "faqs:sync": "tsx scripts/sync-faqs.ts",
+    "visa:seed": "tsx scripts/seed-visa.ts",
+    "visa:pdfs-to-r2": "tsx scripts/migrate-visa-pdfs-to-r2.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

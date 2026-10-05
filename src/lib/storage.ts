@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { CopyObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { randomUUID } from 'node:crypto'
 
 function required(name: string): string {
@@ -26,10 +26,29 @@ export function publicUrlForKey(key: string): string {
     return `${base}/${key.replace(/^\//, '')}`
 }
 
+/** The R2 key behind one of our public URLs, or `null` for any other URL. */
+export function keyForPublicUrl(url: string): string | null {
+    const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, '')
+    if (!base || !url.startsWith(`${base}/`)) return null
+    return decodeURIComponent(url.slice(base.length + 1).split(/[?#]/)[0]) || null
+}
+
+/** `Content-Disposition` that makes browsers download the file under `name`, including non-ASCII names. */
+export function attachmentDisposition(name: string): string {
+    const ascii = name
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\x20-\x7e]/g, '')
+        .replace(/["\\]/g, '')
+        .trim()
+    return `attachment; filename="${ascii || 'download'}"; filename*=UTF-8''${encodeURIComponent(name)}`
+}
+
 export async function putObject(input: {
     key: string
     body: Buffer
     contentType: string
+    contentDisposition?: string
 }): Promise<{ key: string; url: string; contentType: string }> {
     const bucket = required('R2_BUCKET')
     const client = getClient()
@@ -40,6 +59,7 @@ export async function putObject(input: {
             Key: input.key,
             Body: input.body,
             ContentType: input.contentType,
+            ContentDisposition: input.contentDisposition,
         }),
     )
 
@@ -48,6 +68,21 @@ export async function putObject(input: {
         url: publicUrlForKey(input.key),
         contentType: input.contentType,
     }
+}
+
+/** Rewrites a stored PDF's headers in place so downloads use `name`. */
+export async function setDownloadName(key: string, name: string): Promise<void> {
+    const bucket = required('R2_BUCKET')
+    await getClient().send(
+        new CopyObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            CopySource: `${bucket}/${key.split('/').map(encodeURIComponent).join('/')}`,
+            MetadataDirective: 'REPLACE',
+            ContentType: 'application/pdf',
+            ContentDisposition: attachmentDisposition(name),
+        }),
+    )
 }
 
 export function buildUploadKey(folder: string, extension: string): string {
