@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { SITE_PAGE_IDS } from '../lib/sitePageContent.js'
 import { STORY_COUNT, TRAVEL_TIP_COUNT } from '../lib/tourContent.js'
 import { TOUR_REGIONS } from '../lib/tourRegion.js'
 import {
@@ -252,6 +253,92 @@ export const visaFinderUpdateSchema = z
         ),
     })
     .partial()
+
+const pageText = (max: number) => z.string().trim().min(1, 'Text cannot be empty').max(max)
+const pageList = (max: number, count = 30) => z.array(pageText(max)).min(1).max(count)
+const titledItems = z
+    .array(z.object({ title: pageText(120), description: pageText(600) }))
+    .min(1)
+    .max(12)
+
+export const sitePageIdParamSchema = z.object({ id: z.enum(SITE_PAGE_IDS) })
+
+const homePageSchema = z.object({
+    hero: z.object({ title: pageText(80), subtitle: pageText(200), ctaLabel: pageText(60) }),
+    story: z.object({ eyebrow: pageText(60), title: pageText(160), body: pageText(2000), linkLabel: pageText(60) }),
+    whyUs: z.object({ eyebrow: pageText(60), title: pageText(160), points: pageList(80, 12) }),
+})
+
+const aboutPageSchema = z.object({
+    intro: pageText(600),
+    whyUs: z.object({
+        eyebrow: pageText(60),
+        title: pageText(160),
+        intro: pageText(2000),
+        pillars: titledItems,
+        promise: pageList(80, 12),
+        quote: pageText(400),
+    }),
+    founder: z.object({
+        eyebrow: pageText(60),
+        title: pageText(160),
+        intro: pageText(2000),
+        name: pageText(120),
+        role: pageText(120),
+        story: pageText(3000),
+        whyItMatters: pageText(3000),
+        quote: pageText(400),
+    }),
+    origin: z.object({
+        eyebrow: pageText(60),
+        title: pageText(160),
+        intro: pageText(2000),
+        story: pageText(3000),
+        values: titledItems,
+        mission: pageText(600),
+        vision: pageText(600),
+    }),
+    transparency: z.object({
+        eyebrow: pageText(60),
+        title: pageText(160),
+        intro: pageText(2000),
+        principle: pageText(300),
+        contact: z.object({
+            address: pageText(200),
+            email: z.string().trim().email().max(254),
+            phone: pageText(40),
+        }),
+        visas: pageList(80),
+        support: pageList(300),
+        disclaimer: pageText(2000),
+        footnote: pageText(1000),
+    }),
+})
+
+const legalPageSchema = z.object({
+    subtitle: pageText(200),
+    intro: pageText(4000),
+    lastUpdated: pageText(40),
+    sections: z
+        .array(
+            z.object({
+                id: optionId,
+                label: pageText(60),
+                title: pageText(160),
+                body: pageText(10000),
+            }),
+        )
+        .min(1)
+        .max(30)
+        .refine(uniqueIds, 'Each section needs a different id'),
+})
+
+export const sitePageSchemas = {
+    home: homePageSchema,
+    about: aboutPageSchema,
+    privacy: legalPageSchema,
+    terms: legalPageSchema,
+} satisfies Record<(typeof SITE_PAGE_IDS)[number], z.ZodType>
 
 export const bootstrapSchema = z.object({
     email: z.string().email().nullable().optional(),

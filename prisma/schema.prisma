@@ -162,6 +162,14 @@ model VisaCatalog {
   updatedAt DateTime @updatedAt
 }
 
+/// One row per editable public page (`home`, `about`, `privacy`, `terms`).
+model SitePage {
+  id        String   @id
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model CartItem {
   id             String       @id @default(cuid())
   userId         String

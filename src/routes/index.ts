@@ -6,6 +6,7 @@ import inquiriesRoutes from './inquiries.routes.js'
 import meRoutes from './me.routes.js'
 import merchRoutes from './merch.routes.js'
 import partnersRoutes from './partners.routes.js'
+import sitePagesRoutes from './sitePages.routes.js'
 import testimonialsRoutes from './testimonials.routes.js'
 import toursRoutes from './tours.routes.js'
 import uploadsRoutes from './uploads.routes.js'
@@ -19,6 +20,7 @@ apiRouter.use('/partners', partnersRoutes)
 apiRouter.use('/testimonials', testimonialsRoutes)
 apiRouter.use('/faqs', faqsRoutes)
 apiRouter.use('/visa', visaRoutes)
+apiRouter.use('/pages', sitePagesRoutes)
 apiRouter.use('/me', meRoutes)
 apiRouter.use('/cart', cartRoutes)
 apiRouter.use('/uploads', uploadsRoutes)
