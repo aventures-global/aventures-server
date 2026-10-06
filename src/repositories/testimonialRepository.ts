@@ -22,6 +22,19 @@ class TestimonialRepository {
     async deleteById(id: string) {
         return prisma.testimonial.delete({ where: { id } })
     }
+
+    async nextSortOrder() {
+        const { _max } = await prisma.testimonial.aggregate({ _max: { sortOrder: true } })
+        return (_max.sortOrder ?? -1) + 1
+    }
+
+    async reorder(ids: string[]) {
+        return prisma.$transaction(
+            ids.map((id, index) =>
+                prisma.testimonial.update({ where: { id }, data: { sortOrder: index } }),
+            ),
+        )
+    }
 }
 
 export default new TestimonialRepository()

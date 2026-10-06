@@ -18,6 +18,11 @@ class TestimonialController {
         res.json(item)
     }
 
+    async reorder(req: Request, res: Response) {
+        await TestimonialService.reorder(req.body)
+        res.status(204).send()
+    }
+
     async deleteById(req: Request, res: Response) {
         await TestimonialService.deleteById(String(req.params.id))
         res.status(204).send()

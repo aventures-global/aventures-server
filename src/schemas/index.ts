@@ -118,16 +118,20 @@ export const partnerUpdateSchema = partnerCreateSchema.partial().omit({ id: true
 
 export const testimonialCreateSchema = z.object({
     id: z.string().min(1).optional(),
-    quote: z.string().min(1),
-    name: z.string().min(1),
-    trip: z.string().min(1),
+    quote: z.string().trim().min(1).max(1000),
+    name: z.string().trim().min(1).max(120),
+    trip: z.string().trim().min(1).max(120),
     rating: z.number().int().min(1).max(5),
-    sortOrder: z.number().int().default(0),
+    sortOrder: z.number().int().optional(),
 })
 
 export const testimonialUpdateSchema = testimonialCreateSchema
     .partial()
     .omit({ id: true })
+
+export const testimonialReorderSchema = z.object({
+    ids: z.array(z.string().min(1)).min(1),
+})
 
 export const faqCategoryCreateSchema = z.object({
     name: z.string().trim().min(1).max(120),

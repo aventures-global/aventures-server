@@ -5,6 +5,7 @@ import { toTestimonialDto } from '../lib/mappers.js'
 import TestimonialRepository from '../repositories/testimonialRepository.js'
 import type {
     testimonialCreateSchema,
+    testimonialReorderSchema,
     testimonialUpdateSchema,
 } from '../schemas/index.js'
 
@@ -25,7 +26,7 @@ class TestimonialService {
             name: input.name,
             trip: input.trip,
             rating: input.rating,
-            sortOrder: input.sortOrder,
+            sortOrder: input.sortOrder ?? (await TestimonialRepository.nextSortOrder()),
         })
         return toTestimonialDto(item)
     }
@@ -44,6 +45,18 @@ class TestimonialService {
             ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
         })
         return toTestimonialDto(item)
+    }
+
+    async reorder(input: z.infer<typeof testimonialReorderSchema>) {
+        const unique = new Set(input.ids)
+        const existing = await TestimonialRepository.findAll()
+        if (unique.size !== input.ids.length || unique.size !== existing.length) {
+            throw new AppError(400, 'VALIDATION_ERROR', 'Send every testimonial exactly once')
+        }
+        if (existing.some((item) => !unique.has(item.id))) {
+            throw new AppError(400, 'VALIDATION_ERROR', 'Unknown testimonial in order')
+        }
+        await TestimonialRepository.reorder(input.ids)
     }
 
     async deleteById(id: string) {

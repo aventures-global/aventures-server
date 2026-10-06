@@ -134,5 +134,6 @@ export function toTestimonialDto(item: Testimonial) {
         name: item.name,
         trip: item.trip,
         rating: item.rating,
+        sortOrder: item.sortOrder,
     }
 }
