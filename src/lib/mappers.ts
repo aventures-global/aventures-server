@@ -123,7 +123,10 @@ export function toPartnerDto(partner: Partner) {
     return {
         id: partner.id,
         name: partner.name,
+        url: partner.url,
+        description: partner.description,
         logoSrc: partner.logoSrc,
+        sortOrder: partner.sortOrder,
     }
 }
 

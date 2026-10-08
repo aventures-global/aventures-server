@@ -3,7 +3,7 @@ import type { z } from 'zod'
 import { AppError } from '../lib/errors.js'
 import { toPartnerDto } from '../lib/mappers.js'
 import PartnerRepository from '../repositories/partnerRepository.js'
-import type { partnerCreateSchema, partnerUpdateSchema } from '../schemas/index.js'
+import type { partnerCreateSchema, partnerReorderSchema, partnerUpdateSchema } from '../schemas/index.js'
 
 class PartnerService {
     async list() {
@@ -27,8 +27,10 @@ class PartnerService {
         const partner = await PartnerRepository.create({
             id,
             name: input.name,
+            url: input.url,
+            description: input.description,
             logoSrc: input.logoSrc,
-            sortOrder: input.sortOrder,
+            sortOrder: input.sortOrder ?? (await PartnerRepository.nextSortOrder()),
         })
         return toPartnerDto(partner)
     }
@@ -41,10 +43,24 @@ class PartnerService {
 
         const partner = await PartnerRepository.updateById(id, {
             ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.url !== undefined ? { url: input.url } : {}),
+            ...(input.description !== undefined ? { description: input.description } : {}),
             ...(input.logoSrc !== undefined ? { logoSrc: input.logoSrc } : {}),
             ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
         })
         return toPartnerDto(partner)
+    }
+
+    async reorder(input: z.infer<typeof partnerReorderSchema>) {
+        const unique = new Set(input.ids)
+        const existing = await PartnerRepository.findAll()
+        if (unique.size !== input.ids.length || unique.size !== existing.length) {
+            throw new AppError(400, 'VALIDATION_ERROR', 'Send every partner exactly once')
+        }
+        if (existing.some((item) => !unique.has(item.id))) {
+            throw new AppError(400, 'VALIDATION_ERROR', 'Unknown partner in order')
+        }
+        await PartnerRepository.reorder(input.ids)
     }
 
     async deleteById(id: string) {

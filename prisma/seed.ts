@@ -11,6 +11,7 @@ import { tours } from '../../client/src/data/tours.ts'
 
 import { compressImageFile } from '../src/lib/compressImage.js'
 import { seedFaqs } from './faqSeed.ts'
+import { seedPartners } from './partnersSeed.ts'
 import { seedSitePages } from './sitePagesSeed.ts'
 import { seedVisaCatalog } from './visaSeed.ts'
 import { parsePriceToCents } from '../src/lib/money.js'
@@ -103,7 +104,7 @@ async function collectPaths() {
         for (const image of product.gallery) paths.add(image)
     }
     for (const partner of partners) {
-        paths.add(partner.logoSrc)
+        if (partner.logoSrc) paths.add(partner.logoSrc)
     }
     return [...paths]
 }
@@ -122,22 +123,7 @@ async function main() {
         await uploadAsset(asset, urlMap)
     }
 
-    for (const [index, partner] of partners.entries()) {
-        await prisma.partner.upsert({
-            where: { id: partner.id },
-            create: {
-                id: partner.id,
-                name: partner.name,
-                logoSrc: await resolveAssetUrl(partner.logoSrc, urlMap),
-                sortOrder: index,
-            },
-            update: {
-                name: partner.name,
-                logoSrc: await resolveAssetUrl(partner.logoSrc, urlMap),
-                sortOrder: index,
-            },
-        })
-    }
+    await seedPartners(prisma, (src) => resolveAssetUrl(src, urlMap))
 
     for (const [index, item] of testimonials.entries()) {
         await prisma.testimonial.upsert({

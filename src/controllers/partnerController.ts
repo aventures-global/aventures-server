@@ -18,6 +18,11 @@ class PartnerController {
         res.json(partner)
     }
 
+    async reorder(req: Request, res: Response) {
+        await PartnerService.reorder(req.body)
+        res.status(204).send()
+    }
+
     async deleteById(req: Request, res: Response) {
         await PartnerService.deleteById(String(req.params.id))
         res.status(204).send()

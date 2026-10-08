@@ -22,6 +22,19 @@ class PartnerRepository {
     async deleteById(id: string) {
         return prisma.partner.delete({ where: { id } })
     }
+
+    async nextSortOrder() {
+        const { _max } = await prisma.partner.aggregate({ _max: { sortOrder: true } })
+        return (_max.sortOrder ?? -1) + 1
+    }
+
+    async reorder(ids: string[]) {
+        return prisma.$transaction(
+            ids.map((id, index) =>
+                prisma.partner.update({ where: { id }, data: { sortOrder: index } }),
+            ),
+        )
+    }
 }
 
 export default new PartnerRepository()

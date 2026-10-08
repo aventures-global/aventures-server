@@ -93,12 +93,14 @@ model MerchCategory {
 }
 
 model Partner {
-  id        String   @id
-  name      String
-  logoSrc   String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id
+  name        String
+  url         String   @default("")
+  description String   @default("")
+  logoSrc     String   @default("")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Testimonial {

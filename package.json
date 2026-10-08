@@ -21,6 +21,7 @@
     "tours:backfill-coords": "tsx scripts/backfill-tour-coords.ts",
     "merch:categories": "tsx scripts/migrate-merch-categories.ts",
     "faqs:seed": "tsx scripts/seed-faqs.ts",
+    "partners:seed": "tsx scripts/seed-partners.ts",
     "faqs:sync": "tsx scripts/sync-faqs.ts",
     "visa:seed": "tsx scripts/seed-visa.ts",
     "pages:seed": "tsx scripts/seed-site-pages.ts",

@@ -110,12 +110,18 @@ export const merchCategoryReorderSchema = z.object({
 
 export const partnerCreateSchema = z.object({
     id: z.string().min(1).optional(),
-    name: z.string().min(1),
-    logoSrc: z.string().min(1),
-    sortOrder: z.number().int().default(0),
+    name: z.string().trim().min(1).max(120),
+    url: z.string().trim().url().max(300),
+    description: z.string().trim().max(300).default(''),
+    logoSrc: z.string().trim().default(''),
+    sortOrder: z.number().int().optional(),
 })
 
 export const partnerUpdateSchema = partnerCreateSchema.partial().omit({ id: true })
+
+export const partnerReorderSchema = z.object({
+    ids: z.array(z.string().min(1)).min(1),
+})
 
 export const testimonialCreateSchema = z.object({
     id: z.string().min(1).optional(),
