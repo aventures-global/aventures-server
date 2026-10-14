@@ -4,7 +4,7 @@ export type AuthContext = {
     neonRole: string | null
 }
 
-export type UserRole = 'CUSTOMER' | 'STAFF' | 'ADMIN'
+export type UserRole = 'CUSTOMER' | 'STAFF' | 'ADMIN' | 'SUPER_ADMIN'
 
 declare global {
     namespace Express {

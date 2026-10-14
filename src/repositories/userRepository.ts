@@ -1,4 +1,4 @@
-import type { User, UserRole } from '../generated/prisma/client.js'
+import type { Prisma, User, UserRole } from '../generated/prisma/client.js'
 
 import { prisma } from '../lib/prisma.js'
 
@@ -12,6 +12,18 @@ export type BootstrapSeed = {
 class UserRepository {
     async findById(id: string) {
         return prisma.user.findUnique({ where: { id } })
+    }
+
+    async findMany(options: {
+        where: Prisma.UserWhereInput
+        orderBy: Prisma.UserOrderByWithRelationInput
+        skip: number
+        take: number
+    }) {
+        return prisma.$transaction([
+            prisma.user.findMany(options),
+            prisma.user.count({ where: options.where }),
+        ])
     }
 
     async upsert(id: string, seed: BootstrapSeed) {

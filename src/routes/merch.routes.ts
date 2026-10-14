@@ -2,7 +2,7 @@ import { Router } from 'express'
 
 import MerchController from '../controllers/merchController.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { requireRole } from '../middleware/requireRole.js'
+import { requireStaff } from '../middleware/requireRole.js'
 import { validate } from '../middleware/validate.js'
 import {
     idParamSchema,
@@ -15,7 +15,7 @@ import {
 } from '../schemas/index.js'
 
 const router = Router()
-const staff = [requireAuth, requireRole('STAFF', 'ADMIN')]
+const staff = [requireAuth, requireStaff]
 
 router.get('/categories', MerchController.listCategories)
 router.post('/categories', ...staff, validate(merchCategoryCreateSchema), MerchController.createCategory)

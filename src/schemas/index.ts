@@ -360,6 +360,21 @@ export const updateMeSchema = z.object({
     profilePicture: z.string().nullable().optional(),
 })
 
+export const adminUserListSchema = z.object({
+    q: z.string().trim().max(200).default(''),
+    role: z.enum(['CUSTOMER', 'STAFF', 'ADMIN', 'SUPER_ADMIN', 'all']).default('all'),
+    sort: z.enum(['createdAt', 'email', 'role']).default('createdAt'),
+    dir: z.enum(['asc', 'desc']).default('desc'),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+})
+
+export const adminUserUpdateSchema = updateMeSchema.omit({ profilePicture: true })
+
+export const adminUserRoleSchema = z.object({
+    role: z.enum(['CUSTOMER', 'STAFF', 'ADMIN']),
+})
+
 export const cartAddSchema = z.object({
     productId: z.string().min(1),
     qty: z.number().int().min(1).max(99).default(1),

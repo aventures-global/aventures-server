@@ -1,5 +1,6 @@
 import { Router } from 'express'
 
+import adminUsersRoutes from './adminUsers.routes.js'
 import cartRoutes from './cart.routes.js'
 import faqsRoutes from './faqs.routes.js'
 import inquiriesRoutes from './inquiries.routes.js'
@@ -25,5 +26,6 @@ apiRouter.use('/me', meRoutes)
 apiRouter.use('/cart', cartRoutes)
 apiRouter.use('/uploads', uploadsRoutes)
 apiRouter.use('/inquiries', inquiriesRoutes)
+apiRouter.use('/admin/users', adminUsersRoutes)
 
 export default apiRouter

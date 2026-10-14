@@ -2,7 +2,7 @@ import { Router } from 'express'
 
 import PartnerController from '../controllers/partnerController.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { requireRole } from '../middleware/requireRole.js'
+import { requireStaff } from '../middleware/requireRole.js'
 import { validate } from '../middleware/validate.js'
 import {
     idParamSchema,
@@ -12,7 +12,7 @@ import {
 } from '../schemas/index.js'
 
 const router = Router()
-const staff = [requireAuth, requireRole('STAFF', 'ADMIN')]
+const staff = [requireAuth, requireStaff]
 
 router.get('/', PartnerController.list)
 router.post('/', ...staff, validate(partnerCreateSchema), PartnerController.create)

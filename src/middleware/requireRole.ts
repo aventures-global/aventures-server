@@ -32,3 +32,6 @@ export function requireRole(...roles: UserRole[]) {
         }
     }
 }
+
+export const requireStaff = requireRole('STAFF', 'ADMIN', 'SUPER_ADMIN')
+export const requireSuperAdmin = requireRole('SUPER_ADMIN')
