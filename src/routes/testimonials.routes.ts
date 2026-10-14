@@ -2,7 +2,7 @@ import { Router } from 'express'
 
 import TestimonialController from '../controllers/testimonialController.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { requireStaff } from '../middleware/requireRole.js'
+import { requireContentEditor } from '../middleware/requireRole.js'
 import { validate } from '../middleware/validate.js'
 import {
     idParamSchema,
@@ -12,7 +12,7 @@ import {
 } from '../schemas/index.js'
 
 const router = Router()
-const staff = [requireAuth, requireStaff]
+const staff = [requireAuth, requireContentEditor]
 
 router.get('/', TestimonialController.list)
 router.post('/', ...staff, validate(testimonialCreateSchema), TestimonialController.create)

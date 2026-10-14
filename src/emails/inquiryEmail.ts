@@ -1,6 +1,6 @@
 import type { InquiryInput } from '../schemas/index.js'
 
-const colors = {
+export const colors = {
     oat: '#f5f0e7',
     cream: '#faf7f0',
     ink: '#0b0b0b',
@@ -13,8 +13,8 @@ const colors = {
 }
 
 // Custom webfonts are ignored by Gmail/Outlook, so every stack ends in a safe fallback.
-const serif = "'Noto Serif Display','Noto Serif',Georgia,'Times New Roman',serif"
-const sans = "Poppins,'Segoe UI',Helvetica,Arial,sans-serif"
+export const serif = "'Noto Serif Display','Noto Serif',Georgia,'Times New Roman',serif"
+export const sans = "Poppins,'Segoe UI',Helvetica,Arial,sans-serif"
 
 const kindLabels: Record<InquiryInput['kind'], string> = {
     question: 'Ask AVENtures question',
@@ -30,7 +30,7 @@ type Field = [label: string, value: string | undefined]
 type Section = [title: string, fields: Field[]]
 type OnboardingInput = Extract<InquiryInput, { kind: 'onboarding' }>
 
-function escapeHtml(value: string) {
+export function escapeHtml(value: string) {
     return value
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')

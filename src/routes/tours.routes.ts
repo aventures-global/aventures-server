@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit'
 
 import TourController from '../controllers/tourController.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { requireStaff } from '../middleware/requireRole.js'
+import { requireContentEditor } from '../middleware/requireRole.js'
 import { validate } from '../middleware/validate.js'
 import {
     slugParamSchema,
@@ -32,9 +32,9 @@ router.get('/featured', TourController.listFeatured)
 router.get('/search', TourController.search)
 router.get('/suggest', suggestLimiter, TourController.suggest)
 router.get('/:slug', validate(slugParamSchema, 'params'), TourController.getBySlug)
-router.post('/', requireAuth, requireStaff, validate(tourCreateSchema), TourController.create)
-router.post('/:slug/move', requireAuth, requireStaff, validate(slugParamSchema, 'params'), validate(tourMoveSchema), TourController.move)
-router.patch('/:slug', requireAuth, requireStaff, validate(slugParamSchema, 'params'), validate(tourUpdateSchema), TourController.updateBySlug)
-router.delete('/:slug', requireAuth, requireStaff, validate(slugParamSchema, 'params'), TourController.deleteBySlug)
+router.post('/', requireAuth, requireContentEditor, validate(tourCreateSchema), TourController.create)
+router.post('/:slug/move', requireAuth, requireContentEditor, validate(slugParamSchema, 'params'), validate(tourMoveSchema), TourController.move)
+router.patch('/:slug', requireAuth, requireContentEditor, validate(slugParamSchema, 'params'), validate(tourUpdateSchema), TourController.updateBySlug)
+router.delete('/:slug', requireAuth, requireContentEditor, validate(slugParamSchema, 'params'), TourController.deleteBySlug)
 
 export default router

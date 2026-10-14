@@ -15,16 +15,80 @@ enum UserRole {
 }
 
 model User {
-  id             String     @id
-  email          String?    @unique
-  firstName      String?
-  lastName       String?
-  phone          String?
-  profilePicture String?
-  role           UserRole   @default(CUSTOMER)
-  cartItems      CartItem[]
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id              String            @id
+  email           String?           @unique
+  firstName       String?
+  lastName        String?
+  phone           String?
+  profilePicture  String?
+  role            UserRole          @default(CUSTOMER)
+  cartItems       CartItem[]
+  preference      UserPreference?
+  invitations     StaffInvitation[] @relation("InvitedUser")
+  sentInvitations StaffInvitation[] @relation("InvitedBy")
+  auditActions    AuditLog[]        @relation("AuditActor")
+  auditEntries    AuditLog[]        @relation("AuditSubject")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+/// Personal admin-site preferences; one row per user, created on first save.
+model UserPreference {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme     String   @default("system")
+  accent    String   @default("royal")
+  font      String   @default("poppins")
+  textSize  String   @default("default")
+  density   String   @default("comfortable")
+  motion    String   @default("system")
+  updatedAt DateTime @updatedAt
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+/// Promotion to STAFF or ADMIN only takes effect once the invited user accepts by email link.
+model StaffInvitation {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation("InvitedUser", fields: [userId], references: [id], onDelete: Cascade)
+  role        UserRole
+  invitedById String?
+  invitedBy   User?            @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  tokenHash   String           @unique
+  expiresAt   DateTime
+  status      InvitationStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  respondedAt DateTime?
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorId       String?
+  actor         User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  subjectUserId String?
+  subjectUser   User?    @relation("AuditSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
+  action        String
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now())
+
+  @@index([subjectUserId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+/// Key-value configuration rows (`business`, `role-permissions`).
+model AppSetting {
+  id        String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }
 
 model Tour {
@@ -61,8 +125,8 @@ model GeocodeCache {
 }
 
 model MerchProduct {
-  id          String     @id
-  slug        String     @unique
+  id          String        @id
+  slug        String        @unique
   name        String
   tagline     String
   description String

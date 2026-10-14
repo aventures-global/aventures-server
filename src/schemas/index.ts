@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { CAPABILITIES } from '../lib/permissions.js'
 import { SITE_PAGE_IDS } from '../lib/sitePageContent.js'
 import { STORY_COUNT, TRAVEL_TIP_COUNT } from '../lib/tourContent.js'
 import { TOUR_REGIONS } from '../lib/tourRegion.js'
@@ -362,6 +363,8 @@ export const updateMeSchema = z.object({
 
 export const adminUserListSchema = z.object({
     q: z.string().trim().max(200).default(''),
+    /** `team` lists staff and admins, `customers` lists website accounts, `all` is the super admin's invite search. */
+    scope: z.enum(['team', 'customers', 'all']).default('team'),
     role: z.enum(['CUSTOMER', 'STAFF', 'ADMIN', 'SUPER_ADMIN', 'all']).default('all'),
     sort: z.enum(['createdAt', 'email', 'role']).default('createdAt'),
     dir: z.enum(['asc', 'desc']).default('desc'),
@@ -373,6 +376,56 @@ export const adminUserUpdateSchema = updateMeSchema.omit({ profilePicture: true 
 
 export const adminUserRoleSchema = z.object({
     role: z.enum(['CUSTOMER', 'STAFF', 'ADMIN']),
+})
+
+export const pageQuerySchema = z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export const preferencesSchema = z.object({
+    theme: z.enum(['light', 'dark', 'system']),
+    accent: z.enum(['royal', 'emerald', 'burgundy', 'slate', 'gold']),
+    font: z.enum(['poppins', 'inter', 'system', 'serif']),
+    textSize: z.enum(['small', 'default', 'large']),
+    density: z.enum(['comfortable', 'compact']),
+    motion: z.enum(['system', 'reduce', 'full']),
+})
+
+export const preferencesUpdateSchema = preferencesSchema.partial()
+
+const handle = z.string().trim().max(60)
+const socialUrl = z.union([z.literal(''), z.string().trim().url().max(300)])
+
+export const businessSettingsSchema = z.object({
+    email: z.string().trim().email().max(200),
+    phoneDisplay: z.string().trim().min(1).max(40),
+    addressLines: z.array(z.string().trim().max(120)).min(1).max(4),
+    facebookUrl: socialUrl,
+    instagramUrl: socialUrl,
+    tiktokUrl: socialUrl,
+    facebookHandle: handle,
+    instagramHandle: handle,
+    tiktokHandle: handle,
+})
+
+export const rolePermissionsSchema = z.object({
+    STAFF: z.array(z.enum(CAPABILITIES)),
+    ADMIN: z.array(z.enum(CAPABILITIES)),
+})
+
+export const invitationCreateSchema = z.object({
+    userId: z.string().min(1),
+    role: z.enum(['STAFF', 'ADMIN']),
+})
+
+export const invitationListSchema = z.object({
+    status: z.enum(['PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED', 'all']).default('PENDING'),
+    userId: z.string().min(1).optional(),
+})
+
+export const invitationTokenSchema = z.object({
+    token: z.string().min(20).max(200),
 })
 
 export const cartAddSchema = z.object({

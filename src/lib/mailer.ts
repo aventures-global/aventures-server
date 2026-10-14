@@ -14,7 +14,9 @@ type CloudflareSendResponse = {
 }
 
 export type OutgoingEmail = {
-    replyTo: { address: string; name: string }
+    /** Defaults to the `MAIL_TO` staff inbox. */
+    to?: string
+    replyTo?: { address: string; name: string }
     subject: string
     html: string
     text: string
@@ -40,7 +42,7 @@ export async function sendEmail(email: OutgoingEmail) {
     const token = requireEnv('CF_API_TOKEN')
     const accountId = requireEnv('CF_ACCOUNT_ID')
     const from = parseAddress(requireEnv('MAIL_FROM'))
-    const to = requireEnv('MAIL_TO')
+    const to = email.to ?? requireEnv('MAIL_TO')
 
     const res = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/email/sending/send`,
@@ -53,7 +55,7 @@ export async function sendEmail(email: OutgoingEmail) {
             body: JSON.stringify({
                 from,
                 to,
-                reply_to: email.replyTo,
+                ...(email.replyTo ? { reply_to: email.replyTo } : {}),
                 subject: email.subject,
                 html: email.html,
                 text: email.text,

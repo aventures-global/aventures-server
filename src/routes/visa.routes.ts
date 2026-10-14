@@ -2,7 +2,7 @@ import { Router } from 'express'
 
 import VisaController from '../controllers/visaController.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { requireStaff } from '../middleware/requireRole.js'
+import { requireContentEditor } from '../middleware/requireRole.js'
 import { validate } from '../middleware/validate.js'
 import {
     visaFinderUpdateSchema,
@@ -13,7 +13,7 @@ import {
 } from '../schemas/index.js'
 
 const router = Router()
-const staff = [requireAuth, requireStaff]
+const staff = [requireAuth, requireContentEditor]
 
 router.get('/', VisaController.getCatalog)
 router.patch('/pages/:slug', ...staff, validate(visaPageSlugParamSchema, 'params'), validate(visaPageUpdateSchema), VisaController.updatePage)

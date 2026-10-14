@@ -1,7 +1,9 @@
-import type { Prisma, User } from '../generated/prisma/client.js'
+import type { Prisma, User, UserRole } from '../generated/prisma/client.js'
 import type { z } from 'zod'
 
 import { AppError } from '../lib/errors.js'
+import { TEAM_ROLES, isPromotion } from '../lib/permissions.js'
+import AuditLogRepository from '../repositories/auditLogRepository.js'
 import type { BootstrapSeed } from '../repositories/userRepository.js'
 import UserRepository from '../repositories/userRepository.js'
 import type {
@@ -9,8 +11,12 @@ import type {
     adminUserRoleSchema,
     adminUserUpdateSchema,
     bootstrapSchema,
+    pageQuerySchema,
     updateMeSchema,
 } from '../schemas/index.js'
+import PermissionService from './permissionService.js'
+
+export type Actor = { id: string; role: UserRole }
 
 function serializeUser(user: User) {
     return {
@@ -33,6 +39,10 @@ function emailSet(raw = ''): Set<string> {
             .map((email) => email.trim().toLowerCase())
             .filter(Boolean),
     )
+}
+
+function isTeamMember(user: User) {
+    return TEAM_ROLES.includes(user.role)
 }
 
 class UserService {
@@ -81,9 +91,19 @@ class UserService {
         return serializeUser(user)
     }
 
-    async list(input: z.infer<typeof adminUserListSchema>) {
+    async list(actor: Actor, input: z.infer<typeof adminUserListSchema>) {
+        if (input.scope === 'all') {
+            if (actor.role !== 'SUPER_ADMIN') throw new AppError(403, 'FORBIDDEN', 'Insufficient permissions')
+        } else {
+            await PermissionService.assert(actor.role, input.scope === 'team' ? 'team.view' : 'clients.view')
+        }
+
+        const scopeRoles: UserRole[] | null =
+            input.scope === 'team' ? TEAM_ROLES : input.scope === 'customers' ? ['CUSTOMER'] : null
+        const roles = input.role === 'all' ? scopeRoles : scopeRoles && !scopeRoles.includes(input.role) ? [] : [input.role]
+
         const where: Prisma.UserWhereInput = {
-            ...(input.role !== 'all' ? { role: input.role } : {}),
+            ...(roles ? { role: { in: roles } } : {}),
             ...(input.q
                 ? {
                       OR: (['email', 'firstName', 'lastName', 'phone'] as const).map((field) => ({
@@ -106,15 +126,31 @@ class UserService {
         }
     }
 
-    async getById(id: string) {
-        return serializeUser(await this.requireUser(id))
+    async getById(actor: Actor, id: string) {
+        return serializeUser(await this.requireViewable(actor, id))
     }
 
-    async updateById(id: string, input: z.infer<typeof adminUserUpdateSchema>) {
-        await this.requireUser(id)
-        return serializeUser(await UserRepository.updateProfile(id, input))
+    async updateById(actor: Actor, id: string, input: z.infer<typeof adminUserUpdateSchema>) {
+        const user = await this.requireUser(id)
+        if (isTeamMember(user)) {
+            if (actor.role !== 'SUPER_ADMIN') {
+                throw new AppError(403, 'FORBIDDEN', 'Only the super admin can edit team member profiles')
+            }
+        } else {
+            await PermissionService.assert(actor.role, 'clients.edit')
+        }
+
+        const updated = await UserRepository.updateProfile(id, input)
+        await AuditLogRepository.create({
+            actorId: actor.id,
+            subjectUserId: id,
+            action: 'profile.updated',
+            metadata: { fields: Object.keys(input) },
+        })
+        return serializeUser(updated)
     }
 
+    /** Lowers a role immediately. Promotions go through an emailed invitation instead. */
     async setRole(actorId: string, id: string, input: z.infer<typeof adminUserRoleSchema>) {
         if (actorId === id) {
             throw new AppError(400, 'INVALID_ROLE_CHANGE', 'You cannot change your own role')
@@ -124,7 +160,52 @@ class UserService {
             throw new AppError(400, 'INVALID_ROLE_CHANGE', 'Super admin roles are managed by the server')
         }
         if (user.role === input.role) return serializeUser(user)
-        return serializeUser(await UserRepository.setRole(id, input.role))
+        if (isPromotion(user.role, input.role)) {
+            throw new AppError(
+                400,
+                'INVITATION_REQUIRED',
+                'Promotions need the person to accept an emailed invitation. Send an invitation instead.',
+            )
+        }
+
+        const updated = await UserRepository.setRole(id, input.role)
+        await AuditLogRepository.create({
+            actorId,
+            subjectUserId: id,
+            action: 'role.changed',
+            metadata: { from: user.role, to: input.role },
+        })
+        return serializeUser(updated)
+    }
+
+    async activity(actor: Actor, id: string, input: z.infer<typeof pageQuerySchema>) {
+        await this.requireViewable(actor, id)
+        const [entries, total] = await AuditLogRepository.findForUser(
+            id,
+            (input.page - 1) * input.limit,
+            input.limit,
+        )
+        return {
+            items: entries.map((entry) => ({
+                id: entry.id,
+                action: entry.action,
+                metadata: entry.metadata,
+                createdAt: entry.createdAt,
+                actor: entry.actor,
+                subjectUser: entry.subjectUser,
+            })),
+            total,
+            page: input.page,
+            limit: input.limit,
+        }
+    }
+
+    private async requireViewable(actor: Actor, id: string) {
+        const user = await this.requireUser(id)
+        if (actor.id !== id) {
+            await PermissionService.assert(actor.role, isTeamMember(user) ? 'team.view' : 'clients.view')
+        }
+        return user
     }
 
     private async requireUser(id: string) {

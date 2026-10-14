@@ -3,7 +3,7 @@ import multer from 'multer'
 
 import UploadController from '../controllers/uploadController.js'
 import { requireAuth } from '../middleware/requireAuth.js'
-import { requireStaff } from '../middleware/requireRole.js'
+import { requireContentEditor } from '../middleware/requireRole.js'
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -12,6 +12,6 @@ const upload = multer({
 
 const router = Router()
 
-router.post('/', requireAuth, requireStaff, upload.single('file'), UploadController.create)
+router.post('/', requireAuth, requireContentEditor, upload.single('file'), UploadController.create)
 
 export default router
