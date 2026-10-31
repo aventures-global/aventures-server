@@ -1,5 +1,8 @@
-import { CopyObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { CopyObjectCommand, DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { randomUUID } from 'node:crypto'
+
+/** Former public bases still present in stored URLs after switching off *.r2.dev. */
+const LEGACY_PUBLIC_BASES = ['https://pub-99ebb469dda04547813e7149f4af3469.r2.dev'] as const
 
 function required(name: string): string {
     const value = process.env[name]
@@ -28,9 +31,16 @@ export function publicUrlForKey(key: string): string {
 
 /** The R2 key behind one of our public URLs, or `null` for any other URL. */
 export function keyForPublicUrl(url: string): string | null {
-    const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, '')
-    if (!base || !url.startsWith(`${base}/`)) return null
-    return decodeURIComponent(url.slice(base.length + 1).split(/[?#]/)[0]) || null
+    const bases = [
+        process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, ''),
+        ...LEGACY_PUBLIC_BASES,
+    ].filter((base): base is string => Boolean(base))
+
+    for (const base of bases) {
+        if (!url.startsWith(`${base}/`)) continue
+        return decodeURIComponent(url.slice(base.length + 1).split(/[?#]/)[0]) || null
+    }
+    return null
 }
 
 /** `Content-Disposition` that makes browsers download the file under `name`, including non-ASCII names. */
@@ -67,6 +77,27 @@ export async function putObject(input: {
         key: input.key,
         url: publicUrlForKey(input.key),
         contentType: input.contentType,
+    }
+}
+
+export async function deleteObject(key: string): Promise<void> {
+    const bucket = required('R2_BUCKET')
+    await getClient().send(
+        new DeleteObjectCommand({
+            Bucket: bucket,
+            Key: key,
+        }),
+    )
+}
+
+/** Best-effort delete for a stored public URL; no-op for non-R2 URLs. */
+export async function deletePublicUrl(url: string | null | undefined): Promise<void> {
+    const key = url ? keyForPublicUrl(url) : null
+    if (!key) return
+    try {
+        await deleteObject(key)
+    } catch {
+        // Profile updates should not fail because cleanup did.
     }
 }
 

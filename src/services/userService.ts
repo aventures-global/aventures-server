@@ -3,6 +3,7 @@ import type { z } from 'zod'
 
 import { AppError } from '../lib/errors.js'
 import { TEAM_ROLES, isPromotion } from '../lib/permissions.js'
+import { deletePublicUrl } from '../lib/storage.js'
 import AuditLogRepository from '../repositories/auditLogRepository.js'
 import type { BootstrapSeed } from '../repositories/userRepository.js'
 import UserRepository from '../repositories/userRepository.js'
@@ -87,6 +88,13 @@ class UserService {
 
     async updateMe(userId: string, input: z.infer<typeof updateMeSchema>) {
         await this.bootstrap(userId)
+        if (input.profilePicture !== undefined) {
+            const current = await UserRepository.findById(userId)
+            const previous = current?.profilePicture
+            if (previous && previous !== input.profilePicture) {
+                await deletePublicUrl(previous)
+            }
+        }
         const user = await UserRepository.updateProfile(userId, input)
         return serializeUser(user)
     }
