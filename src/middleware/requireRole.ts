@@ -54,3 +54,6 @@ export function requirePermission(capability: Capability) {
 export const requireStaff = requireRole('STAFF', 'ADMIN', 'SUPER_ADMIN')
 export const requireSuperAdmin = requireRole('SUPER_ADMIN')
 export const requireContentEditor = requirePermission('content.edit')
+export const requireDocumentsView = requirePermission('documents.view')
+export const requireDocumentsManage = requirePermission('documents.manage')
+export const requireDocumentsShare = requirePermission('documents.share')

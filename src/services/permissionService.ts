@@ -18,10 +18,32 @@ function normalize(matrix: z.infer<typeof rolePermissionsSchema>): RolePermissio
     return { STAFF: keep(matrix.STAFF), ADMIN: keep(matrix.ADMIN) }
 }
 
+/**
+ * Matrices saved before documents.* / quotations.* existed omit those caps.
+ * Seed defaults only when neither configurable role has any of that prefix yet.
+ */
+function withCapabilityDefaults(matrix: RolePermissions, prefix: string): RolePermissions {
+    const hasPrefix = (role: keyof RolePermissions) => matrix[role].some((cap) => cap.startsWith(prefix))
+    if (hasPrefix('STAFF') || hasPrefix('ADMIN')) return matrix
+
+    const merge = (role: keyof RolePermissions) => {
+        const extras = DEFAULT_ROLE_PERMISSIONS[role].filter((cap) => cap.startsWith(prefix))
+        return extras.length ? [...matrix[role], ...extras] : matrix[role]
+    }
+    return { STAFF: merge('STAFF'), ADMIN: merge('ADMIN') }
+}
+
 class PermissionService {
     async getMatrix(): Promise<RolePermissions> {
         const stored = rolePermissionsSchema.safeParse(await AppSettingRepository.findValue('role-permissions'))
-        return stored.success ? normalize(stored.data) : DEFAULT_ROLE_PERMISSIONS
+        if (!stored.success) return DEFAULT_ROLE_PERMISSIONS
+        const normalized = normalize(stored.data)
+        const withDocs = withCapabilityDefaults(normalized, 'documents.')
+        const merged = withCapabilityDefaults(withDocs, 'quotations.')
+        if (merged !== normalized) {
+            await AppSettingRepository.upsert('role-permissions', merged)
+        }
+        return merged
     }
 
     async updateMatrix(actorId: string, input: z.infer<typeof rolePermissionsSchema>) {

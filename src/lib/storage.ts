@@ -1,5 +1,12 @@
-import { CopyObjectCommand, DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import {
+    CopyObjectCommand,
+    DeleteObjectCommand,
+    GetObjectCommand,
+    PutObjectCommand,
+    S3Client,
+} from '@aws-sdk/client-s3'
 import { randomUUID } from 'node:crypto'
+import type { Readable } from 'node:stream'
 
 /** Former public bases still present in stored URLs after switching off *.r2.dev. */
 const LEGACY_PUBLIC_BASES = ['https://pub-99ebb469dda04547813e7149f4af3469.r2.dev'] as const
@@ -119,6 +126,54 @@ export async function setDownloadName(key: string, name: string): Promise<void> 
 export function buildUploadKey(folder: string, extension: string): string {
     const safeFolder = folder.replace(/^\/+|\/+$/g, '') || 'uploads'
     return `${safeFolder}/${randomUUID()}.${extension}`
+}
+
+/** Private object key — never exposed via the public CDN base URL. */
+export function buildPrivateDocumentKey(extension: string): string {
+    const ext = extension.replace(/^\./, '').toLowerCase() || 'bin'
+    return `private/documents/${randomUUID()}.${ext}`
+}
+
+/** Upload a private object. Does not return a public URL. */
+export async function putPrivateObject(input: {
+    key: string
+    body: Buffer
+    contentType: string
+    contentDisposition?: string
+}): Promise<{ key: string; contentType: string }> {
+    const bucket = required('R2_BUCKET')
+    await getClient().send(
+        new PutObjectCommand({
+            Bucket: bucket,
+            Key: input.key,
+            Body: input.body,
+            ContentType: input.contentType,
+            ContentDisposition: input.contentDisposition,
+        }),
+    )
+    return { key: input.key, contentType: input.contentType }
+}
+
+export async function getObjectStream(key: string): Promise<{
+    body: Readable
+    contentType: string | undefined
+    contentLength: number | undefined
+}> {
+    const bucket = required('R2_BUCKET')
+    const result = await getClient().send(
+        new GetObjectCommand({
+            Bucket: bucket,
+            Key: key,
+        }),
+    )
+    if (!result.Body) {
+        throw new Error(`Object has no body: ${key}`)
+    }
+    return {
+        body: result.Body as Readable,
+        contentType: result.ContentType,
+        contentLength: result.ContentLength,
+    }
 }
 
 export function isR2Configured(): boolean {

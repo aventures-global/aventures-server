@@ -2,12 +2,14 @@ import { Router } from 'express'
 
 import adminUsersRoutes from './adminUsers.routes.js'
 import cartRoutes from './cart.routes.js'
+import { adminDocumentsRouter, publicDocumentSharesRouter } from './documents.routes.js'
 import faqsRoutes from './faqs.routes.js'
 import inquiriesRoutes from './inquiries.routes.js'
 import { adminInvitationsRouter, publicInvitationsRouter } from './invitations.routes.js'
 import meRoutes from './me.routes.js'
 import merchRoutes from './merch.routes.js'
 import partnersRoutes from './partners.routes.js'
+import { adminQuotationsRouter, publicQuotationSharesRouter } from './quotations.routes.js'
 import settingsRoutes from './settings.routes.js'
 import sitePagesRoutes from './sitePages.routes.js'
 import testimonialsRoutes from './testimonials.routes.js'
@@ -30,6 +32,10 @@ apiRouter.use('/uploads', uploadsRoutes)
 apiRouter.use('/inquiries', inquiriesRoutes)
 apiRouter.use('/admin/users', adminUsersRoutes)
 apiRouter.use('/admin/invitations', adminInvitationsRouter)
+apiRouter.use('/admin/documents', adminDocumentsRouter)
+apiRouter.use('/admin/quotations', adminQuotationsRouter)
+apiRouter.use('/document-shares', publicDocumentSharesRouter)
+apiRouter.use('/quotation-shares', publicQuotationSharesRouter)
 apiRouter.use('/invitations', publicInvitationsRouter)
 apiRouter.use('/settings', settingsRoutes)
 

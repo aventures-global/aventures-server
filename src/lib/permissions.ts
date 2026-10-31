@@ -6,6 +6,12 @@ export const CAPABILITIES = [
     'clients.edit',
     'team.view',
     'business.edit',
+    'documents.view',
+    'documents.manage',
+    'documents.share',
+    'quotations.view',
+    'quotations.manage',
+    'quotations.share',
 ] as const
 
 export type Capability = (typeof CAPABILITIES)[number]
@@ -18,8 +24,28 @@ export type ConfigurableRole = (typeof CONFIGURABLE_ROLES)[number]
 export type RolePermissions = Record<ConfigurableRole, Capability[]>
 
 export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
-    STAFF: ['content.edit', 'clients.view', 'clients.edit'],
-    ADMIN: ['content.edit', 'clients.view', 'clients.edit', 'team.view', 'business.edit'],
+    STAFF: [
+        'content.edit',
+        'clients.view',
+        'clients.edit',
+        'documents.view',
+        'documents.manage',
+        'quotations.view',
+        'quotations.manage',
+    ],
+    ADMIN: [
+        'content.edit',
+        'clients.view',
+        'clients.edit',
+        'team.view',
+        'business.edit',
+        'documents.view',
+        'documents.manage',
+        'documents.share',
+        'quotations.view',
+        'quotations.manage',
+        'quotations.share',
+    ],
 }
 
 export function capabilitiesFor(role: UserRole, matrix: RolePermissions): Capability[] {

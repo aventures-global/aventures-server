@@ -544,3 +544,102 @@ export const inquirySchema = z.discriminatedUnion('kind', [
 ])
 
 export type InquiryInput = z.infer<typeof inquirySchema>
+
+export const FILE_SPACES = ['CUSTOMER', 'INTERNAL'] as const
+export const DOCUMENT_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const
+export const DOCUMENT_CATEGORIES = ['PASSPORT', 'ID', 'VISA', 'SUPPORTING', 'OTHER'] as const
+
+export const documentListSchema = z.object({
+    space: z.enum(FILE_SPACES),
+    ownerUserId: z.string().min(1).optional(),
+    folderId: z
+        .string()
+        .optional()
+        .transform((value) => (value === undefined || value === '' || value === 'root' ? null : value)),
+    q: z.string().trim().max(200).default(''),
+    category: z.enum([...DOCUMENT_CATEGORIES, 'all']).default('all'),
+    status: z.enum([...DOCUMENT_STATUSES, 'all']).default('all'),
+})
+
+export const folderCreateSchema = z.object({
+    space: z.enum(FILE_SPACES),
+    name: z.string().trim().min(1).max(120),
+    parentId: z.string().min(1).nullable().optional(),
+    ownerUserId: z.string().min(1).optional(),
+})
+
+export const folderRenameSchema = z.object({
+    name: z.string().trim().min(1).max(120),
+})
+
+export const fileUpdateSchema = z
+    .object({
+        displayName: z.string().trim().min(1).max(240).optional(),
+        category: z.enum(DOCUMENT_CATEGORIES).optional(),
+        status: z.enum(DOCUMENT_STATUSES).optional(),
+        notes: z.string().trim().max(2000).nullable().optional(),
+        folderId: z.string().min(1).nullable().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, 'At least one field is required')
+
+export const documentShareCreateSchema = z.object({
+    expiresInHours: z.union([z.literal(24), z.literal(168), z.literal(720)]).default(168),
+    maxDownloads: z.number().int().min(1).max(1000).nullable().optional(),
+})
+
+export const shareTokenParamSchema = z.object({
+    token: z.string().min(20).max(200),
+})
+
+export const QUOTATION_STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'CONVERTED'] as const
+export const QUOTATION_ITEM_KINDS = ['SERVICE', 'PACKAGE', 'OPTIONAL', 'OTHER'] as const
+export const QUOTATION_STATUS_ACTIONS = ['send', 'accept', 'decline', 'expire'] as const
+
+export const quotationItemInputSchema = z.object({
+    kind: z.enum(QUOTATION_ITEM_KINDS).default('SERVICE'),
+    title: z.string().trim().min(1).max(240),
+    description: z.string().trim().max(2000).nullable().optional(),
+    quantity: z.number().int().min(1).max(9999).default(1),
+    unitCents: z.number().int().nonnegative(),
+    isOptional: z.boolean().optional(),
+    selected: z.boolean().optional(),
+    sortOrder: z.number().int().min(0).max(9999).optional(),
+})
+
+export const quotationListSchema = z.object({
+    q: z.string().trim().max(200).default(''),
+    status: z.enum([...QUOTATION_STATUSES, 'all']).default('all'),
+    customerUserId: z.string().min(1).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export const quotationCreateSchema = z.object({
+    customerUserId: z.string().min(1),
+    title: z.string().trim().min(1).max(240),
+    currency: z.string().trim().min(3).max(8).default('PHP'),
+    notes: z.string().trim().max(5000).nullable().optional(),
+    customerMessage: z.string().trim().max(5000).nullable().optional(),
+    validUntil: z.string().datetime().nullable().optional(),
+    items: z.array(quotationItemInputSchema).min(1).max(100),
+})
+
+export const quotationUpdateSchema = z
+    .object({
+        title: z.string().trim().min(1).max(240).optional(),
+        currency: z.string().trim().min(3).max(8).optional(),
+        notes: z.string().trim().max(5000).nullable().optional(),
+        customerMessage: z.string().trim().max(5000).nullable().optional(),
+        validUntil: z.string().datetime().nullable().optional(),
+        items: z.array(quotationItemInputSchema).min(1).max(100).optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, 'At least one field is required')
+
+export const quotationStatusSchema = z.object({
+    action: z.enum(QUOTATION_STATUS_ACTIONS),
+})
+
+export const quotationShareCreateSchema = z.object({
+    expiresInHours: z.union([z.literal(24), z.literal(168), z.literal(720)]).default(168),
+    maxViews: z.number().int().min(1).max(1000).nullable().optional(),
+})

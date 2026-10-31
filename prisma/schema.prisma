@@ -15,21 +15,31 @@ enum UserRole {
 }
 
 model User {
-  id              String            @id
-  email           String?           @unique
-  firstName       String?
-  lastName        String?
-  phone           String?
-  profilePicture  String?
-  role            UserRole          @default(CUSTOMER)
-  cartItems       CartItem[]
-  preference      UserPreference?
-  invitations     StaffInvitation[] @relation("InvitedUser")
-  sentInvitations StaffInvitation[] @relation("InvitedBy")
-  auditActions    AuditLog[]        @relation("AuditActor")
-  auditEntries    AuditLog[]        @relation("AuditSubject")
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id                   String            @id
+  email                String?           @unique
+  firstName            String?
+  lastName             String?
+  phone                String?
+  profilePicture       String?
+  role                 UserRole          @default(CUSTOMER)
+  cartItems            CartItem[]
+  preference           UserPreference?
+  invitations          StaffInvitation[] @relation("InvitedUser")
+  sentInvitations      StaffInvitation[] @relation("InvitedBy")
+  auditActions         AuditLog[]        @relation("AuditActor")
+  auditEntries         AuditLog[]        @relation("AuditSubject")
+  ownedFolders         FileFolder[]      @relation("FolderOwner")
+  createdFolders       FileFolder[]      @relation("FolderCreator")
+  ownedFiles           ManagedFile[]     @relation("FileOwner")
+  uploadedFiles        ManagedFile[]     @relation("FileUploader")
+  createdShares        DocumentShare[]   @relation("ShareCreator")
+  customerQuotations   Quotation[]       @relation("QuotationCustomer")
+  createdQuotations    Quotation[]       @relation("QuotationCreator")
+  updatedQuotations    Quotation[]       @relation("QuotationUpdater")
+  createdQuoteShares   QuotationShare[]  @relation("QuotationShareCreator")
+  customerBookings     Booking[]         @relation("BookingCustomer")
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 }
 
 /// Personal admin-site preferences; one row per user, created on first save.
@@ -250,4 +260,200 @@ model CartItem {
 
   @@unique([userId, merchProductId, size])
   @@index([userId])
+}
+
+enum FileSpace {
+  CUSTOMER
+  INTERNAL
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentCategory {
+  PASSPORT
+  ID
+  VISA
+  SUPPORTING
+  OTHER
+}
+
+model FileFolder {
+  id          String      @id @default(cuid())
+  space       FileSpace
+  name        String
+  parentId    String?
+  parent      FileFolder? @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    FileFolder[] @relation("FolderTree")
+  ownerUserId String?
+  owner       User?       @relation("FolderOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  createdById String?
+  createdBy   User?       @relation("FolderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  files       ManagedFile[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([space, ownerUserId, parentId])
+  @@index([parentId])
+}
+
+model ManagedFile {
+  id           String           @id @default(cuid())
+  space        FileSpace
+  folderId     String?
+  folder       FileFolder?      @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  ownerUserId  String?
+  owner        User?            @relation("FileOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  uploadedById String?
+  uploadedBy   User?            @relation("FileUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  displayName  String
+  category     DocumentCategory @default(OTHER)
+  status       DocumentStatus   @default(PENDING)
+  storageKey   String
+  contentType  String
+  sizeBytes    Int
+  notes        String?
+  deletedAt    DateTime?
+  shares       DocumentShare[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([space, ownerUserId, deletedAt])
+  @@index([folderId, deletedAt])
+  @@index([status])
+  @@index([category])
+}
+
+model DocumentShare {
+  id            String    @id @default(cuid())
+  fileId        String
+  file          ManagedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  tokenHash     String    @unique
+  createdById   String?
+  createdBy     User?     @relation("ShareCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  downloadCount Int       @default(0)
+  maxDownloads  Int?
+  createdAt     DateTime  @default(now())
+
+  @@index([fileId, createdAt])
+  @@index([expiresAt])
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CONVERTED
+}
+
+enum QuotationItemKind {
+  SERVICE
+  PACKAGE
+  OPTIONAL
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model Quotation {
+  id               String            @id @default(cuid())
+  number           String            @unique
+  customerUserId   String
+  customer         User              @relation("QuotationCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  status           QuotationStatus   @default(DRAFT)
+  currency         String            @default("PHP")
+  title            String
+  notes            String?
+  customerMessage  String?
+  validUntil       DateTime?
+  subtotalCents    Int               @default(0)
+  optionalCents    Int               @default(0)
+  totalCents       Int               @default(0)
+  createdById      String?
+  createdBy        User?             @relation("QuotationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById      String?
+  updatedBy        User?             @relation("QuotationUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  sentAt           DateTime?
+  acceptedAt       DateTime?
+  declinedAt       DateTime?
+  convertedAt      DateTime?
+  booking          Booking?
+  pdfStorageKey    String?
+  pdfContentType   String?
+  pdfSizeBytes     Int?
+  deletedAt        DateTime?
+  items            QuotationItem[]
+  shares           QuotationShare[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([customerUserId, createdAt])
+  @@index([status, createdAt])
+  @@index([deletedAt])
+}
+
+model QuotationItem {
+  id          String            @id @default(cuid())
+  quotationId String
+  quotation   Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  kind        QuotationItemKind @default(SERVICE)
+  title       String
+  description String?
+  quantity    Int               @default(1)
+  unitCents   Int
+  lineCents   Int
+  isOptional  Boolean           @default(false)
+  selected    Boolean           @default(true)
+  sortOrder   Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([quotationId, sortOrder])
+}
+
+model QuotationShare {
+  id            String     @id @default(cuid())
+  quotationId   String
+  quotation     Quotation  @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  tokenHash     String     @unique
+  createdById   String?
+  createdBy     User?      @relation("QuotationShareCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  viewCount     Int        @default(0)
+  maxViews      Int?
+  createdAt     DateTime   @default(now())
+
+  @@index([quotationId, createdAt])
+  @@index([expiresAt])
+}
+
+/// Thin booking row created from an accepted quotation; full workflow comes later.
+model Booking {
+  id             String        @id @default(cuid())
+  customerUserId String
+  customer       User          @relation("BookingCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  quotationId    String?       @unique
+  quotation      Quotation?    @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  status         BookingStatus @default(PENDING)
+  title          String
+  currency       String        @default("PHP")
+  totalCents     Int
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([customerUserId, createdAt])
+  @@index([status, createdAt])
 }
