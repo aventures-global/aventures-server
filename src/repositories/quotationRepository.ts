@@ -3,7 +3,7 @@ import type { Prisma, QuotationStatus } from '../generated/prisma/client.js'
 import { prisma } from '../lib/prisma.js'
 
 const personSelect = {
-    select: { id: true, email: true, firstName: true, lastName: true },
+    select: { id: true, email: true, firstName: true, lastName: true, profilePicture: true },
 } as const
 
 export const quotationInclude = {

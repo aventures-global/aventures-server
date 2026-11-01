@@ -12,6 +12,10 @@ export const CAPABILITIES = [
     'quotations.view',
     'quotations.manage',
     'quotations.share',
+    'payments.view',
+    'payments.manage',
+    'finance.view',
+    'finance.manage',
 ] as const
 
 export type Capability = (typeof CAPABILITIES)[number]
@@ -32,6 +36,10 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
         'documents.manage',
         'quotations.view',
         'quotations.manage',
+        'payments.view',
+        'payments.manage',
+        'finance.view',
+        'finance.manage',
     ],
     ADMIN: [
         'content.edit',
@@ -45,6 +53,10 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
         'quotations.view',
         'quotations.manage',
         'quotations.share',
+        'payments.view',
+        'payments.manage',
+        'finance.view',
+        'finance.manage',
     ],
 }
 

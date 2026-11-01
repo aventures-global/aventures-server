@@ -39,7 +39,9 @@ class PermissionService {
         if (!stored.success) return DEFAULT_ROLE_PERMISSIONS
         const normalized = normalize(stored.data)
         const withDocs = withCapabilityDefaults(normalized, 'documents.')
-        const merged = withCapabilityDefaults(withDocs, 'quotations.')
+        const withQuotes = withCapabilityDefaults(withDocs, 'quotations.')
+        const withPayments = withCapabilityDefaults(withQuotes, 'payments.')
+        const merged = withCapabilityDefaults(withPayments, 'finance.')
         if (merged !== normalized) {
             await AppSettingRepository.upsert('role-permissions', merged)
         }

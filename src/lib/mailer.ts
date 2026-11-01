@@ -1,6 +1,7 @@
 import { AppError } from './errors.js'
 
 const SEND_TIMEOUT_MS = 10_000
+const SEND_WITH_ATTACHMENTS_TIMEOUT_MS = 30_000
 
 type Address = string | { address: string; name: string }
 
@@ -13,6 +14,14 @@ type CloudflareSendResponse = {
     } | null
 }
 
+export type EmailAttachment = {
+    /** Base64-encoded file contents. */
+    content: string
+    filename: string
+    type: string
+    disposition?: 'attachment' | 'inline'
+}
+
 export type OutgoingEmail = {
     /** Defaults to the `MAIL_TO` staff inbox. */
     to?: string
@@ -20,6 +29,7 @@ export type OutgoingEmail = {
     subject: string
     html: string
     text: string
+    attachments?: EmailAttachment[]
 }
 
 function requireEnv(name: string): string {
@@ -59,8 +69,20 @@ export async function sendEmail(email: OutgoingEmail) {
                 subject: email.subject,
                 html: email.html,
                 text: email.text,
+                ...(email.attachments?.length
+                    ? {
+                          attachments: email.attachments.map((attachment) => ({
+                              content: attachment.content,
+                              filename: attachment.filename,
+                              type: attachment.type,
+                              disposition: attachment.disposition ?? 'attachment',
+                          })),
+                      }
+                    : {}),
             }),
-            signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+            signal: AbortSignal.timeout(
+                email.attachments?.length ? SEND_WITH_ATTACHMENTS_TIMEOUT_MS : SEND_TIMEOUT_MS,
+            ),
         },
     )
 

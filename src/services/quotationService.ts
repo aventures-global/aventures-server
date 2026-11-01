@@ -3,13 +3,16 @@ import type { Readable } from 'node:stream'
 import type { QuotationStatus, User } from '../generated/prisma/client.js'
 import type { z } from 'zod'
 
+import { renderQuotationEmail } from '../emails/quotationEmail.js'
 import { DEFAULT_BUSINESS_SETTINGS } from '../lib/businessSettings.js'
-import { AppError } from '../lib/errors.js'
+import { AppError, isAppError } from '../lib/errors.js'
+import { sendEmail } from '../lib/mailer.js'
 import { formatMoney } from '../lib/money.js'
 import { buildQuotationPdf } from '../lib/quotationPdf.js'
 import {
     attachmentDisposition,
     buildPrivateDocumentKey,
+    getObjectBuffer,
     getObjectStream,
     putPrivateObject,
 } from '../lib/storage.js'
@@ -98,6 +101,7 @@ function serializePerson(person: QuotationWithRelations['customer'] | null) {
         email: person.email,
         firstName: person.firstName,
         lastName: person.lastName,
+        profilePicture: person.profilePicture ?? null,
         displayName: displayName(person),
     }
 }
@@ -157,10 +161,19 @@ function serializeQuotation(quote: QuotationWithRelations) {
             ? {
                   id: quote.booking.id,
                   status: quote.booking.status,
+                  paymentStatus: quote.booking.paymentStatus,
+                  paidCents: quote.booking.paidCents,
+                  paid: formatMoney(quote.booking.paidCents, quote.booking.currency),
+                  remainingCents: Math.max(0, quote.booking.totalCents - quote.booking.paidCents),
+                  remaining: formatMoney(
+                      Math.max(0, quote.booking.totalCents - quote.booking.paidCents),
+                      quote.booking.currency,
+                  ),
                   title: quote.booking.title,
                   totalCents: quote.booking.totalCents,
                   currency: quote.booking.currency,
                   total: formatMoney(quote.booking.totalCents, quote.booking.currency),
+                  dueAt: quote.booking.dueAt?.toISOString() ?? null,
               }
             : null,
         items: quote.items.map(serializeItem),
@@ -376,18 +389,24 @@ class QuotationService {
         return { quotation: serializeQuotation(quote) }
     }
 
-    async generatePdf(actor: Actor, id: string) {
+    async generatePdf(actor: Actor, id: string, options?: { statusOverride?: QuotationStatus }) {
         const quote = await this.maybeExpire(await this.getEditable(id))
+        const updated = await this.storePdf(actor, quote, options?.statusOverride ?? quote.status)
+        return { quotation: serializeQuotation(updated) }
+    }
+
+    private async storePdf(actor: Actor, quote: QuotationWithRelations, status: QuotationStatus) {
         const business = await loadBusinessSettings()
         const buffer = await buildQuotationPdf({
             number: quote.number,
             title: quote.title,
             currency: quote.currency,
-            status: quote.status,
+            status,
             customerName: displayName(quote.customer),
             customerEmail: quote.customer.email,
             customerMessage: quote.customerMessage,
             validUntil: quote.validUntil,
+            issuedAt: quote.createdAt,
             subtotalCents: quote.subtotalCents,
             optionalCents: quote.optionalCents,
             totalCents: quote.totalCents,
@@ -403,7 +422,7 @@ class QuotationService {
             contentDisposition: attachmentDisposition(`${quote.number}.pdf`),
         })
 
-        const updated = await QuotationRepository.update(id, {
+        const updated = await QuotationRepository.update(quote.id, {
             pdfStorageKey: key,
             pdfContentType: 'application/pdf',
             pdfSizeBytes: buffer.length,
@@ -414,10 +433,103 @@ class QuotationService {
             actorId: actor.id,
             subjectUserId: quote.customerUserId,
             action: 'quotation.pdf',
-            metadata: { quotationId: id, number: quote.number, sizeBytes: buffer.length },
+            metadata: { quotationId: quote.id, number: quote.number, sizeBytes: buffer.length },
         })
 
-        return { quotation: serializeQuotation(updated) }
+        return updated
+    }
+
+    async sendByEmail(actor: Actor, id: string) {
+        const existing = await this.maybeExpire(await this.getEditable(id))
+        if (existing.status !== 'DRAFT' && existing.status !== 'SENT') {
+            throw new AppError(400, 'INVALID_STATUS', 'Only draft or sent quotations can be emailed')
+        }
+        const customerEmail = existing.customer?.email?.trim()
+        if (!customerEmail) {
+            throw new AppError(400, 'CUSTOMER_EMAIL_MISSING', 'Customer has no email address')
+        }
+
+        let quote = existing
+        if (!quote.pdfStorageKey || quote.status === 'DRAFT') {
+            quote = await this.storePdf(actor, quote, 'SENT')
+        }
+
+        if (!quote.pdfStorageKey) {
+            throw new AppError(500, 'PDF_MISSING', 'Could not prepare the quotation PDF')
+        }
+
+        const pdf = await getObjectBuffer(quote.pdfStorageKey)
+        const token = randomBytes(32).toString('base64url')
+        const share = await QuotationRepository.createShare({
+            quotationId: quote.id,
+            tokenHash: hashToken(token),
+            createdById: actor.id,
+            expiresAt: new Date(Date.now() + 168 * 60 * 60 * 1000),
+            maxViews: null,
+        })
+        const shareUrl = `${clientOrigin()}/quotes/shared/${token}`
+
+        try {
+            const rendered = renderQuotationEmail({
+                customerName: displayName(quote.customer),
+                number: quote.number,
+                title: quote.title,
+                shareUrl,
+                customerMessage: quote.customerMessage,
+                validUntil: quote.validUntil,
+                businessName: 'AVENtures',
+                totalFormatted: formatMoney(quote.totalCents, quote.currency),
+                siteUrl: process.env.PUBLIC_SITE_URL?.trim() || clientOrigin(),
+            })
+            await sendEmail({
+                to: customerEmail,
+                ...rendered,
+                attachments: [
+                    {
+                        content: pdf.body.toString('base64'),
+                        filename: `${quote.number}.pdf`,
+                        type: 'application/pdf',
+                        disposition: 'attachment',
+                    },
+                ],
+            })
+        } catch (err) {
+            await QuotationRepository.revokeShare(share.id)
+            if (isAppError(err)) throw err
+            console.error('Quotation email failed', err instanceof Error ? err.message : err)
+            throw new AppError(502, 'MAIL_SEND_FAILED', 'Could not send the quotation email')
+        }
+
+        const now = new Date()
+        const updated = await QuotationRepository.update(id, {
+            status: 'SENT',
+            sentAt: quote.sentAt ?? now,
+            updatedBy: { connect: { id: actor.id } },
+        })
+
+        await AuditLogRepository.create({
+            actorId: actor.id,
+            subjectUserId: quote.customerUserId,
+            action: 'quotation.emailed',
+            metadata: {
+                quotationId: id,
+                number: quote.number,
+                shareId: share.id,
+                to: customerEmail,
+            },
+        })
+        await AuditLogRepository.create({
+            actorId: actor.id,
+            subjectUserId: quote.customerUserId,
+            action: 'quotation.share.create',
+            metadata: { quotationId: id, shareId: share.id, via: 'email' },
+        })
+
+        const refreshed = await QuotationRepository.findById(updated.id)
+        return {
+            quotation: serializeQuotation(refreshed!),
+            share: serializeShare(share, token),
+        }
     }
 
     async openPdf(id: string): Promise<{

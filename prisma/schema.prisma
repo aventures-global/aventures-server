@@ -38,6 +38,11 @@ model User {
   updatedQuotations    Quotation[]       @relation("QuotationUpdater")
   createdQuoteShares   QuotationShare[]  @relation("QuotationShareCreator")
   customerBookings     Booking[]         @relation("BookingCustomer")
+  customerPayments     Payment[]         @relation("PaymentCustomer")
+  createdPayments      Payment[]         @relation("PaymentCreator")
+  voidedPayments       Payment[]         @relation("PaymentVoider")
+  createdFinanceEntries FinanceEntry[]   @relation("FinanceEntryCreator")
+  voidedFinanceEntries FinanceEntry[]    @relation("FinanceEntryVoider")
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 }
@@ -439,21 +444,118 @@ model QuotationShare {
   @@index([expiresAt])
 }
 
+enum BookingPaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERPAID
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  GCASH
+  MAYA
+  CARD
+  OTHER
+}
+
+enum FinanceEntryType {
+  INCOME
+  EXPENSE
+}
+
 /// Thin booking row created from an accepted quotation; full workflow comes later.
 model Booking {
-  id             String        @id @default(cuid())
+  id             String               @id @default(cuid())
   customerUserId String
-  customer       User          @relation("BookingCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
-  quotationId    String?       @unique
-  quotation      Quotation?    @relation(fields: [quotationId], references: [id], onDelete: SetNull)
-  status         BookingStatus @default(PENDING)
+  customer       User                 @relation("BookingCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  quotationId    String?              @unique
+  quotation      Quotation?           @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  status         BookingStatus        @default(PENDING)
+  paymentStatus  BookingPaymentStatus @default(UNPAID)
+  paidCents      Int                  @default(0)
+  dueAt          DateTime?
   title          String
-  currency       String        @default("PHP")
+  currency       String               @default("PHP")
   totalCents     Int
   notes          String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  payments       Payment[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@index([customerUserId, createdAt])
   @@index([status, createdAt])
+  @@index([paymentStatus, createdAt])
+  @@index([dueAt])
+}
+
+model Payment {
+  id             String         @id @default(cuid())
+  bookingId      String
+  booking        Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerUserId String
+  customer       User           @relation("PaymentCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  amountCents    Int
+  currency       String         @default("PHP")
+  method         PaymentMethod
+  paidAt         DateTime       @default(now())
+  notes          String?
+  reference      String?
+  createdById    String?
+  createdBy      User?          @relation("PaymentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  voidedAt       DateTime?
+  voidedById     String?
+  voidedBy       User?          @relation("PaymentVoider", fields: [voidedById], references: [id], onDelete: SetNull)
+  voidReason     String?
+  financeEntry   FinanceEntry?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([bookingId, paidAt])
+  @@index([customerUserId, paidAt])
+  @@index([voidedAt])
+  @@index([paidAt])
+}
+
+model FinanceCategory {
+  id         String           @id @default(cuid())
+  name       String
+  type       FinanceEntryType
+  isSystem   Boolean          @default(false)
+  sortOrder  Int              @default(0)
+  archivedAt DateTime?
+  entries    FinanceEntry[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([type, name])
+  @@index([type, sortOrder])
+}
+
+model FinanceEntry {
+  id          String           @id @default(cuid())
+  type        FinanceEntryType
+  categoryId  String
+  category    FinanceCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  amountCents Int
+  currency    String           @default("PHP")
+  occurredAt  DateTime         @default(now())
+  description String
+  notes       String?
+  paymentId   String?          @unique
+  payment     Payment?         @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?            @relation("FinanceEntryCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  voidedAt    DateTime?
+  voidedById  String?
+  voidedBy    User?            @relation("FinanceEntryVoider", fields: [voidedById], references: [id], onDelete: SetNull)
+  voidReason  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([type, occurredAt])
+  @@index([categoryId, occurredAt])
+  @@index([occurredAt])
+  @@index([voidedAt])
 }

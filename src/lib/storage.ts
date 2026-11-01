@@ -176,6 +176,24 @@ export async function getObjectStream(key: string): Promise<{
     }
 }
 
+export async function getObjectBuffer(key: string): Promise<{
+    body: Buffer
+    contentType: string | undefined
+    contentLength: number | undefined
+}> {
+    const object = await getObjectStream(key)
+    const chunks: Buffer[] = []
+    for await (const chunk of object.body) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    }
+    const body = Buffer.concat(chunks)
+    return {
+        body,
+        contentType: object.contentType,
+        contentLength: object.contentLength ?? body.length,
+    }
+}
+
 export function isR2Configured(): boolean {
     return Boolean(
         process.env.R2_ACCOUNT_ID &&

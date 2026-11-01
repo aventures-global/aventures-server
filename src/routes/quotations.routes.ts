@@ -51,6 +51,12 @@ adminQuotationsRouter.post(
     QuotationController.changeStatus,
 )
 adminQuotationsRouter.post(
+    '/:id/send-email',
+    requirePermission('quotations.manage'),
+    validate(idParamSchema, 'params'),
+    QuotationController.sendByEmail,
+)
+adminQuotationsRouter.post(
     '/:id/pdf',
     requirePermission('quotations.manage'),
     validate(idParamSchema, 'params'),

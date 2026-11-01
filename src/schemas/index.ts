@@ -643,3 +643,132 @@ export const quotationShareCreateSchema = z.object({
     expiresInHours: z.union([z.literal(24), z.literal(168), z.literal(720)]).default(168),
     maxViews: z.number().int().min(1).max(1000).nullable().optional(),
 })
+
+export const BOOKING_PAYMENT_STATUSES = ['UNPAID', 'PARTIAL', 'PAID', 'OVERPAID'] as const
+export const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'GCASH', 'MAYA', 'CARD', 'OTHER'] as const
+export const FINANCE_ENTRY_TYPES = ['INCOME', 'EXPENSE'] as const
+
+export const dateRangeQuerySchema = z.object({
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+})
+
+export const bookingListSchema = z.object({
+    q: z.string().trim().max(200).default(''),
+    customerUserId: z.string().min(1).optional(),
+    /** `open` = UNPAID + PARTIAL (still owed). */
+    paymentStatus: z.enum([...BOOKING_PAYMENT_STATUSES, 'open', 'all']).default('all'),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export const bookingUpdateSchema = z
+    .object({
+        dueAt: z.string().datetime().nullable().optional(),
+        notes: z.string().trim().max(5000).nullable().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, 'At least one field is required')
+
+export const paymentListSchema = z.object({
+    q: z.string().trim().max(200).default(''),
+    customerUserId: z.string().min(1).optional(),
+    bookingId: z.string().min(1).optional(),
+    method: z.enum([...PAYMENT_METHODS, 'all']).default('all'),
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    includeVoided: z
+        .union([z.boolean(), z.enum(['true', 'false'])])
+        .optional()
+        .transform((value) => value === true || value === 'true'),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export const paymentCreateSchema = z.object({
+    bookingId: z.string().min(1),
+    amountCents: z.number().int().positive(),
+    method: z.enum(PAYMENT_METHODS),
+    paidAt: z.string().datetime().optional(),
+    notes: z.string().trim().max(5000).nullable().optional(),
+    reference: z.string().trim().max(240).nullable().optional(),
+})
+
+export const paymentUpdateSchema = z
+    .object({
+        amountCents: z.number().int().positive().optional(),
+        method: z.enum(PAYMENT_METHODS).optional(),
+        paidAt: z.string().datetime().optional(),
+        notes: z.string().trim().max(5000).nullable().optional(),
+        reference: z.string().trim().max(240).nullable().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, 'At least one field is required')
+
+export const paymentVoidSchema = z
+    .object({
+        reason: z.string().trim().max(1000).nullable().optional(),
+    })
+    .default({})
+
+export const paymentSummarySchema = dateRangeQuerySchema
+
+export const financeCategoryCreateSchema = z.object({
+    name: z.string().trim().min(1).max(120),
+    type: z.enum(FINANCE_ENTRY_TYPES),
+    sortOrder: z.number().int().min(0).max(9999).optional(),
+})
+
+export const financeCategoryUpdateSchema = z
+    .object({
+        name: z.string().trim().min(1).max(120).optional(),
+        sortOrder: z.number().int().min(0).max(9999).optional(),
+        archived: z.boolean().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, 'At least one field is required')
+
+export const financeEntryListSchema = z.object({
+    q: z.string().trim().max(200).default(''),
+    type: z.enum([...FINANCE_ENTRY_TYPES, 'all']).default('all'),
+    categoryId: z.string().min(1).optional(),
+    currency: z.string().trim().min(3).max(8).optional(),
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    includeVoided: z
+        .union([z.boolean(), z.enum(['true', 'false'])])
+        .optional()
+        .transform((value) => value === true || value === 'true'),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export const financeEntryCreateSchema = z.object({
+    type: z.enum(FINANCE_ENTRY_TYPES),
+    categoryId: z.string().min(1),
+    amountCents: z.number().int().positive(),
+    currency: z.string().trim().min(3).max(8).default('PHP'),
+    occurredAt: z.string().datetime().optional(),
+    description: z.string().trim().min(1).max(240),
+    notes: z.string().trim().max(5000).nullable().optional(),
+})
+
+export const financeEntryUpdateSchema = z
+    .object({
+        categoryId: z.string().min(1).optional(),
+        amountCents: z.number().int().positive().optional(),
+        currency: z.string().trim().min(3).max(8).optional(),
+        occurredAt: z.string().datetime().optional(),
+        description: z.string().trim().min(1).max(240).optional(),
+        notes: z.string().trim().max(5000).nullable().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, 'At least one field is required')
+
+export const financeEntryVoidSchema = z
+    .object({
+        reason: z.string().trim().max(1000).nullable().optional(),
+    })
+    .default({})
+
+export const financeSummarySchema = z.object({
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    currency: z.string().trim().min(3).max(8).optional(),
+})

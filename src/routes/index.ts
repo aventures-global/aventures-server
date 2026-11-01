@@ -9,6 +9,9 @@ import { adminInvitationsRouter, publicInvitationsRouter } from './invitations.r
 import meRoutes from './me.routes.js'
 import merchRoutes from './merch.routes.js'
 import partnersRoutes from './partners.routes.js'
+import { adminBookingsRouter } from './bookings.routes.js'
+import { adminFinanceRouter } from './finance.routes.js'
+import { adminPaymentsRouter } from './payments.routes.js'
 import { adminQuotationsRouter, publicQuotationSharesRouter } from './quotations.routes.js'
 import settingsRoutes from './settings.routes.js'
 import sitePagesRoutes from './sitePages.routes.js'
@@ -34,6 +37,9 @@ apiRouter.use('/admin/users', adminUsersRoutes)
 apiRouter.use('/admin/invitations', adminInvitationsRouter)
 apiRouter.use('/admin/documents', adminDocumentsRouter)
 apiRouter.use('/admin/quotations', adminQuotationsRouter)
+apiRouter.use('/admin/bookings', adminBookingsRouter)
+apiRouter.use('/admin/payments', adminPaymentsRouter)
+apiRouter.use('/admin/finance', adminFinanceRouter)
 apiRouter.use('/document-shares', publicDocumentSharesRouter)
 apiRouter.use('/quotation-shares', publicQuotationSharesRouter)
 apiRouter.use('/invitations', publicInvitationsRouter)

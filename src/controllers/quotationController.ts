@@ -53,6 +53,10 @@ class QuotationController {
         res.json(await QuotationService.generatePdf(req.user!, String(req.params.id)))
     }
 
+    async sendByEmail(req: Request, res: Response) {
+        res.json(await QuotationService.sendByEmail(req.user!, String(req.params.id)))
+    }
+
     async downloadPdf(req: Request, res: Response) {
         pipeDownload(res, await QuotationService.openPdf(String(req.params.id)))
     }
