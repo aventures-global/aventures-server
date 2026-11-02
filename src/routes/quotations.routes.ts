@@ -1,6 +1,7 @@
 import { Router } from 'express'
 
 import QuotationController from '../controllers/quotationController.js'
+import StripeController from '../controllers/stripeController.js'
 import { requireAuth } from '../middleware/requireAuth.js'
 import { requirePermission, requireStaff } from '../middleware/requireRole.js'
 import { validate } from '../middleware/validate.js'
@@ -105,4 +106,10 @@ publicQuotationSharesRouter.get(
     '/:token/pdf',
     validate(shareTokenParamSchema, 'params'),
     QuotationController.downloadSharePdf,
+)
+publicQuotationSharesRouter.post(
+    '/:token/checkout-session',
+    requireAuth,
+    validate(shareTokenParamSchema, 'params'),
+    StripeController.createShareCheckoutSession,
 )

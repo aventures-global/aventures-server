@@ -180,6 +180,7 @@ class QuotationRepository {
                     include: {
                         customer: personSelect,
                         items: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
+                        booking: true,
                     },
                 },
             },

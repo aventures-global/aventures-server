@@ -127,6 +127,13 @@ class PaymentRepository {
         })
     }
 
+    async findByStripeCheckoutSessionId(stripeCheckoutSessionId: string) {
+        return prisma.payment.findUnique({
+            where: { stripeCheckoutSessionId },
+            include: paymentInclude,
+        })
+    }
+
     async create(data: Prisma.PaymentCreateInput) {
         return prisma.payment.create({
             data,

@@ -457,6 +457,7 @@ enum PaymentMethod {
   GCASH
   MAYA
   CARD
+  STRIPE
   OTHER
 }
 
@@ -491,26 +492,28 @@ model Booking {
 }
 
 model Payment {
-  id             String         @id @default(cuid())
-  bookingId      String
-  booking        Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  customerUserId String
-  customer       User           @relation("PaymentCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
-  amountCents    Int
-  currency       String         @default("PHP")
-  method         PaymentMethod
-  paidAt         DateTime       @default(now())
-  notes          String?
-  reference      String?
-  createdById    String?
-  createdBy      User?          @relation("PaymentCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  voidedAt       DateTime?
-  voidedById     String?
-  voidedBy       User?          @relation("PaymentVoider", fields: [voidedById], references: [id], onDelete: SetNull)
-  voidReason     String?
-  financeEntry   FinanceEntry?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                       String         @id @default(cuid())
+  bookingId                String
+  booking                  Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerUserId           String
+  customer                 User           @relation("PaymentCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  amountCents              Int
+  currency                 String         @default("PHP")
+  method                   PaymentMethod
+  paidAt                   DateTime       @default(now())
+  notes                    String?
+  reference                String?
+  stripeCheckoutSessionId  String?        @unique
+  stripePaymentIntentId    String?
+  createdById              String?
+  createdBy                User?          @relation("PaymentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  voidedAt                 DateTime?
+  voidedById               String?
+  voidedBy                 User?          @relation("PaymentVoider", fields: [voidedById], references: [id], onDelete: SetNull)
+  voidReason               String?
+  financeEntry             FinanceEntry?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
 
   @@index([bookingId, paidAt])
   @@index([customerUserId, paidAt])

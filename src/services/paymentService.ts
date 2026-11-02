@@ -1,4 +1,4 @@
-import type { BookingPaymentStatus, User } from '../generated/prisma/client.js'
+import type { BookingPaymentStatus, PaymentMethod, User } from '../generated/prisma/client.js'
 import type { z } from 'zod'
 
 import { AppError } from '../lib/errors.js'
@@ -17,6 +17,21 @@ import {
 import { computePaymentStatus, isBookingOverdue } from './bookingService.js'
 
 type Actor = Pick<User, 'id' | 'role'>
+
+export type RecordPaymentInput = {
+    bookingId: string
+    amountCents: number
+    method: PaymentMethod
+    paidAt?: Date
+    notes?: string | null
+    reference?: string | null
+    stripeCheckoutSessionId?: string | null
+    stripePaymentIntentId?: string | null
+    /** When set, used as Payment.createdBy and finance entry creator. */
+    createdById?: string | null
+    /** Audit actor; defaults to createdById, then customer. */
+    actorId?: string | null
+}
 
 function displayName(user: { firstName: string | null; lastName: string | null; email: string | null }) {
     const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
@@ -127,56 +142,89 @@ class PaymentService {
         return serializePayment(payment)
     }
 
-    async create(actor: Actor, input: z.infer<typeof paymentCreateSchema>) {
+    async recordPayment(input: RecordPaymentInput) {
+        if (input.stripeCheckoutSessionId) {
+            const existing = await PaymentRepository.findByStripeCheckoutSessionId(input.stripeCheckoutSessionId)
+            if (existing) return serializePayment(existing)
+        }
+
         const booking = await BookingRepository.findById(input.bookingId)
         if (!booking) throw new AppError(404, 'NOT_FOUND', 'Booking not found')
         if (booking.status === 'CANCELLED') {
             throw new AppError(400, 'BOOKING_CANCELLED', 'Cannot record payments on a cancelled booking')
         }
 
-        const payment = await PaymentRepository.create({
-            booking: { connect: { id: booking.id } },
-            customer: { connect: { id: booking.customerUserId } },
+        const createdById = input.createdById ?? null
+        const actorId = input.actorId ?? createdById ?? booking.customerUserId
+
+        try {
+            const payment = await PaymentRepository.create({
+                booking: { connect: { id: booking.id } },
+                customer: { connect: { id: booking.customerUserId } },
+                amountCents: input.amountCents,
+                currency: booking.currency,
+                method: input.method,
+                paidAt: input.paidAt ?? new Date(),
+                notes: input.notes ?? null,
+                reference: input.reference ?? null,
+                stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
+                stripePaymentIntentId: input.stripePaymentIntentId ?? null,
+                ...(createdById ? { createdBy: { connect: { id: createdById } } } : {}),
+            })
+
+            await recomputeBookingPaymentState(booking.id)
+
+            const category = await FinanceRepository.findSystemIncomeCategory()
+            if (category) {
+                await FinanceRepository.createEntry({
+                    type: 'INCOME',
+                    category: { connect: { id: category.id } },
+                    amountCents: payment.amountCents,
+                    currency: payment.currency,
+                    occurredAt: payment.paidAt,
+                    description: `Payment for ${booking.title}`,
+                    notes: payment.reference ? `Ref: ${payment.reference}` : payment.notes,
+                    payment: { connect: { id: payment.id } },
+                    ...(createdById ? { createdBy: { connect: { id: createdById } } } : {}),
+                })
+            }
+
+            await AuditLogRepository.create({
+                actorId,
+                subjectUserId: booking.customerUserId,
+                action: 'payment.created',
+                metadata: {
+                    paymentId: payment.id,
+                    bookingId: booking.id,
+                    amountCents: payment.amountCents,
+                    method: payment.method,
+                    stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
+                },
+            })
+
+            const refreshed = await PaymentRepository.findById(payment.id)
+            return serializePayment(refreshed!)
+        } catch (err) {
+            // Concurrent webhook retries: unique session id means another writer won.
+            if (input.stripeCheckoutSessionId) {
+                const raced = await PaymentRepository.findByStripeCheckoutSessionId(input.stripeCheckoutSessionId)
+                if (raced) return serializePayment(raced)
+            }
+            throw err
+        }
+    }
+
+    async create(actor: Actor, input: z.infer<typeof paymentCreateSchema>) {
+        return this.recordPayment({
+            bookingId: input.bookingId,
             amountCents: input.amountCents,
-            currency: booking.currency,
             method: input.method,
             paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
             notes: input.notes ?? null,
             reference: input.reference ?? null,
-            createdBy: { connect: { id: actor.id } },
-        })
-
-        await recomputeBookingPaymentState(booking.id)
-
-        const category = await FinanceRepository.findSystemIncomeCategory()
-        if (category) {
-            await FinanceRepository.createEntry({
-                type: 'INCOME',
-                category: { connect: { id: category.id } },
-                amountCents: payment.amountCents,
-                currency: payment.currency,
-                occurredAt: payment.paidAt,
-                description: `Payment for ${booking.title}`,
-                notes: payment.reference ? `Ref: ${payment.reference}` : payment.notes,
-                payment: { connect: { id: payment.id } },
-                createdBy: { connect: { id: actor.id } },
-            })
-        }
-
-        await AuditLogRepository.create({
+            createdById: actor.id,
             actorId: actor.id,
-            subjectUserId: booking.customerUserId,
-            action: 'payment.created',
-            metadata: {
-                paymentId: payment.id,
-                bookingId: booking.id,
-                amountCents: payment.amountCents,
-                method: payment.method,
-            },
         })
-
-        const refreshed = await PaymentRepository.findById(payment.id)
-        return serializePayment(refreshed!)
     }
 
     async update(actor: Actor, id: string, input: z.infer<typeof paymentUpdateSchema>) {

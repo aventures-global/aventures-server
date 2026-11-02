@@ -3,8 +3,7 @@ import express from 'express'
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 import apiRouter from './routes/index.js'
-import { success } from 'zod'
-import { AppError } from './lib/errors.js'
+import { stripeWebhookRouter } from './routes/stripe.routes.js'
 
 const app = express()
 
@@ -25,6 +24,10 @@ app.use(
         origin: origins.length === 1 ? origins[0] : origins,
     }),
 )
+
+// Stripe needs the raw body for signature verification — mount before JSON parsing.
+app.use('/api/stripe', express.raw({ type: 'application/json' }), stripeWebhookRouter)
+
 app.use(express.json({ limit: '2mb' }))
 
 app.get('/health', (_req, res) => {

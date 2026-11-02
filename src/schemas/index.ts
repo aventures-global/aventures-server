@@ -645,7 +645,7 @@ export const quotationShareCreateSchema = z.object({
 })
 
 export const BOOKING_PAYMENT_STATUSES = ['UNPAID', 'PARTIAL', 'PAID', 'OVERPAID'] as const
-export const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'GCASH', 'MAYA', 'CARD', 'OTHER'] as const
+export const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'GCASH', 'MAYA', 'CARD', 'STRIPE', 'OTHER'] as const
 export const FINANCE_ENTRY_TYPES = ['INCOME', 'EXPENSE'] as const
 
 export const dateRangeQuerySchema = z.object({

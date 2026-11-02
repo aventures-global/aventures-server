@@ -599,6 +599,15 @@ class QuotationService {
         assertShareActive(share)
         await QuotationRepository.incrementShareViews(share.id)
         const quote = share.quotation
+        const booking = quote.booking
+        const remainingCents = booking ? Math.max(0, booking.totalCents - booking.paidCents) : 0
+        const payable = Boolean(
+            booking &&
+                booking.status !== 'CANCELLED' &&
+                remainingCents > 0 &&
+                (booking.paymentStatus === 'UNPAID' || booking.paymentStatus === 'PARTIAL'),
+        )
+
         return {
             share: {
                 id: share.id,
@@ -626,6 +635,15 @@ class QuotationService {
                         unit: formatMoney(item.unitCents, quote.currency),
                         line: formatMoney(item.lineCents, quote.currency),
                     })),
+                    booking: booking
+                        ? {
+                              paymentStatus: booking.paymentStatus,
+                              currency: booking.currency,
+                              remainingCents,
+                              remaining: formatMoney(remainingCents, booking.currency),
+                              payable,
+                          }
+                        : null,
                 },
             },
         }
