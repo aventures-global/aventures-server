@@ -281,7 +281,7 @@ class FinanceService {
 
         const incomeCents = byType.find((row) => row.type === 'INCOME')?._sum.amountCents ?? 0
         const expenseCents = byType.find((row) => row.type === 'EXPENSE')?._sum.amountCents ?? 0
-        const displayCurrency = currency ?? 'PHP'
+        const displayCurrency = currency ?? 'USD'
 
         return {
             from: from?.toISOString() ?? null,

@@ -78,6 +78,10 @@ class StripeCheckoutService {
         const origin = clientOrigin()
         const returnToken = encodeURIComponent(token)
         const stripe = getStripe()
+        const preferredCurrency = user.preferredCurrency === 'PHP' ? 'PHP' : 'USD'
+        const bookingCurrency = booking.currency.toUpperCase()
+        // Adaptive Pricing keeps the ledger in USD and lets Stripe present a local currency (e.g. PHP).
+        const enableAdaptivePricing = preferredCurrency === 'PHP' && bookingCurrency === 'USD'
 
         let session: Stripe.Checkout.Session
         try {
@@ -98,11 +102,13 @@ class StripeCheckoutService {
                         },
                     },
                 ],
+                adaptive_pricing: { enabled: enableAdaptivePricing },
                 metadata: {
                     bookingId: booking.id,
                     customerUserId: quote.customerUserId,
                     quotationId: quote.id,
                     shareId: share.id,
+                    preferredCurrency,
                 },
                 success_url: `${origin}/payments/complete?status=success&token=${returnToken}`,
                 cancel_url: `${origin}/payments/complete?status=cancel&token=${returnToken}`,
@@ -158,6 +164,15 @@ class StripeCheckoutService {
         }
 
         const paymentIntent = paymentIntentId(session)
+        const presentment = (
+            session as Stripe.Checkout.Session & {
+                presentment_details?: { presentment_amount?: number; presentment_currency?: string } | null
+            }
+        ).presentment_details
+        const notes =
+            presentment?.presentment_currency && presentment.presentment_amount != null
+                ? `Stripe Checkout (presented ${presentment.presentment_amount} ${presentment.presentment_currency.toUpperCase()})`
+                : 'Stripe Checkout'
 
         await PaymentService.recordPayment({
             bookingId,
@@ -165,7 +180,7 @@ class StripeCheckoutService {
             method: 'STRIPE',
             paidAt: new Date(),
             reference: paymentIntent,
-            notes: 'Stripe Checkout',
+            notes,
             stripeCheckoutSessionId: session.id,
             stripePaymentIntentId: paymentIntent,
             createdById: session.metadata?.customerUserId ?? null,

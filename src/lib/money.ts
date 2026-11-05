@@ -1,8 +1,19 @@
 export function formatMoney(cents: number, currency = 'USD'): string {
-    if (currency === 'USD') {
-        return `$${Math.round(cents / 100)}`
+    const code = currency.trim().toUpperCase() || 'USD'
+    const amount = cents / 100
+    try {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: code,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(amount)
+    } catch {
+        return `${amount.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })} ${code}`
     }
-    return `${(cents / 100).toFixed(2)} ${currency}`
 }
 
 export function parsePriceToCents(price: string): number {

@@ -25,7 +25,8 @@
     "faqs:sync": "tsx scripts/sync-faqs.ts",
     "visa:seed": "tsx scripts/seed-visa.ts",
     "pages:seed": "tsx scripts/seed-site-pages.ts",
-    "visa:pdfs-to-r2": "tsx scripts/migrate-visa-pdfs-to-r2.ts"
+    "visa:pdfs-to-r2": "tsx scripts/migrate-visa-pdfs-to-r2.ts",
+    "ledger:php-to-usd": "tsx scripts/convert-php-to-usd.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

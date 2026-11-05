@@ -359,6 +359,7 @@ export const updateMeSchema = z.object({
     lastName: z.string().trim().min(1).max(100).nullable().optional(),
     phone: z.string().trim().min(1).max(40).nullable().optional(),
     profilePicture: z.string().nullable().optional(),
+    preferredCurrency: z.enum(['USD', 'PHP']).optional(),
 })
 
 export const adminUserListSchema = z.object({
@@ -614,10 +615,19 @@ export const quotationListSchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
+/** Quotations are always ledgered in USD. Extra values are accepted then coerced. */
+const quotationCurrencySchema = z
+    .string()
+    .trim()
+    .min(3)
+    .max(8)
+    .optional()
+    .transform(() => 'USD' as const)
+
 export const quotationCreateSchema = z.object({
     customerUserId: z.string().min(1),
     title: z.string().trim().min(1).max(240),
-    currency: z.string().trim().min(3).max(8).default('PHP'),
+    currency: quotationCurrencySchema.default('USD'),
     notes: z.string().trim().max(5000).nullable().optional(),
     customerMessage: z.string().trim().max(5000).nullable().optional(),
     validUntil: z.string().datetime().nullable().optional(),
@@ -627,7 +637,7 @@ export const quotationCreateSchema = z.object({
 export const quotationUpdateSchema = z
     .object({
         title: z.string().trim().min(1).max(240).optional(),
-        currency: z.string().trim().min(3).max(8).optional(),
+        currency: quotationCurrencySchema,
         notes: z.string().trim().max(5000).nullable().optional(),
         customerMessage: z.string().trim().max(5000).nullable().optional(),
         validUntil: z.string().datetime().nullable().optional(),
@@ -744,7 +754,7 @@ export const financeEntryCreateSchema = z.object({
     type: z.enum(FINANCE_ENTRY_TYPES),
     categoryId: z.string().min(1),
     amountCents: z.number().int().positive(),
-    currency: z.string().trim().min(3).max(8).default('PHP'),
+    currency: z.string().trim().min(3).max(8).default('USD'),
     occurredAt: z.string().datetime().optional(),
     description: z.string().trim().min(1).max(240),
     notes: z.string().trim().max(5000).nullable().optional(),

@@ -30,6 +30,9 @@ export type QuotationPdfInput = {
     items: QuotationPdfItem[]
     business: BusinessSettings
     brandName?: string
+    /** When set, totals include an approximate PHP equivalent (presentment only). */
+    phpEquivalentCents?: number | null
+    usdPhpRate?: number | null
 }
 
 const ROYAL = '#163765'
@@ -256,6 +259,21 @@ export async function buildQuotationPdf(input: QuotationPdfInput): Promise<Buffe
     doc.strokeColor(ROYAL).lineWidth(1).moveTo(totalsX, y).lineTo(right, y).stroke()
     y += 8
     drawTotalRow('Total', formatMoney(input.totalCents, input.currency), true)
+
+    if (input.phpEquivalentCents != null && input.phpEquivalentCents > 0) {
+        y += 4
+        ensureSpace(36)
+        drawTotalRow('Approx. PHP', formatMoney(input.phpEquivalentCents, 'PHP'))
+        const rateNote =
+            input.usdPhpRate != null
+                ? `Indicative conversion at ${input.usdPhpRate.toFixed(2)} PHP per 1 USD. Final charge may differ at checkout.`
+                : 'Indicative conversion for reference. Final charge may differ at checkout.'
+        doc.fillColor(MUTED).font('Helvetica').fontSize(7)
+        const noteHeight = doc.heightOfString(rateNote, { width: totalsWidth })
+        ensureSpace(noteHeight + 8)
+        doc.text(rateNote, totalsX, y, { width: totalsWidth, lineGap: 1 })
+        y += noteHeight + 4
+    }
 
     y += 24
     ensureSpace(70)

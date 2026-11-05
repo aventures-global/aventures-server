@@ -21,6 +21,8 @@ model User {
   lastName             String?
   phone                String?
   profilePicture       String?
+  /// Customer checkout presentment preference; ledger amounts stay in booking currency (USD by default).
+  preferredCurrency    String            @default("USD")
   role                 UserRole          @default(CUSTOMER)
   cartItems            CartItem[]
   preference           UserPreference?
@@ -377,7 +379,7 @@ model Quotation {
   customerUserId   String
   customer         User              @relation("QuotationCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
   status           QuotationStatus   @default(DRAFT)
-  currency         String            @default("PHP")
+  currency         String            @default("USD")
   title            String
   notes            String?
   customerMessage  String?
@@ -478,7 +480,7 @@ model Booking {
   paidCents      Int                  @default(0)
   dueAt          DateTime?
   title          String
-  currency       String               @default("PHP")
+  currency       String               @default("USD")
   totalCents     Int
   notes          String?
   payments       Payment[]
@@ -498,7 +500,7 @@ model Payment {
   customerUserId           String
   customer                 User           @relation("PaymentCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
   amountCents              Int
-  currency                 String         @default("PHP")
+  currency                 String         @default("USD")
   method                   PaymentMethod
   paidAt                   DateTime       @default(now())
   notes                    String?
@@ -542,7 +544,7 @@ model FinanceEntry {
   categoryId  String
   category    FinanceCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   amountCents Int
-  currency    String           @default("PHP")
+  currency    String           @default("USD")
   occurredAt  DateTime         @default(now())
   description String
   notes       String?

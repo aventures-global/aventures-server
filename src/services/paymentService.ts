@@ -317,18 +317,18 @@ class PaymentService {
             from: from?.toISOString() ?? null,
             to: to?.toISOString() ?? null,
             collectedCents: aggregate._sum.amountCents ?? 0,
-            collected: formatMoney(aggregate._sum.amountCents ?? 0, 'PHP'),
+            collected: formatMoney(aggregate._sum.amountCents ?? 0, 'USD'),
             paymentCount: aggregate._count._all,
             byMethod: byMethod.map((row) => ({
                 method: row.method,
                 count: row._count._all,
                 amountCents: row._sum.amountCents ?? 0,
-                amount: formatMoney(row._sum.amountCents ?? 0, 'PHP'),
+                amount: formatMoney(row._sum.amountCents ?? 0, 'USD'),
             })),
             byPaymentStatus,
             overdueCount,
             outstandingCents,
-            outstanding: formatMoney(outstandingCents, 'PHP'),
+            outstanding: formatMoney(outstandingCents, 'USD'),
         }
     }
 

@@ -69,6 +69,7 @@ class UserRepository {
             lastName?: string | null
             phone?: string | null
             profilePicture?: string | null
+            preferredCurrency?: string
         },
     ) {
         return prisma.user.update({
@@ -79,6 +80,9 @@ class UserRepository {
                 ...(input.phone !== undefined ? { phone: input.phone } : {}),
                 ...(input.profilePicture !== undefined
                     ? { profilePicture: input.profilePicture }
+                    : {}),
+                ...(input.preferredCurrency !== undefined
+                    ? { preferredCurrency: input.preferredCurrency }
                     : {}),
             },
         })

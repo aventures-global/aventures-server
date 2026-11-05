@@ -27,6 +27,7 @@ function serializeUser(user: User) {
         lastName: user.lastName,
         phone: user.phone,
         profilePicture: user.profilePicture,
+        preferredCurrency: user.preferredCurrency === 'PHP' ? 'PHP' : 'USD',
         role: user.role,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,

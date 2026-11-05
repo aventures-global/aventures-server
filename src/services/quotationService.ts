@@ -7,6 +7,7 @@ import { renderQuotationEmail } from '../emails/quotationEmail.js'
 import { DEFAULT_BUSINESS_SETTINGS } from '../lib/businessSettings.js'
 import { AppError, isAppError } from '../lib/errors.js'
 import { sendEmail } from '../lib/mailer.js'
+import { getUsdPhpRate, usdCentsToPhpCents } from '../lib/fx.js'
 import { formatMoney } from '../lib/money.js'
 import { buildQuotationPdf } from '../lib/quotationPdf.js'
 import {
@@ -275,7 +276,7 @@ class QuotationService {
             number,
             customerUserId: input.customerUserId,
             title: input.title,
-            currency: input.currency,
+            currency: 'USD',
             notes: input.notes ?? null,
             customerMessage: input.customerMessage ?? null,
             validUntil: input.validUntil ? new Date(input.validUntil) : null,
@@ -303,7 +304,7 @@ class QuotationService {
 
         const quote = await QuotationRepository.update(id, {
             ...(input.title !== undefined ? { title: input.title } : {}),
-            ...(input.currency !== undefined ? { currency: input.currency } : {}),
+            ...(input.currency !== undefined ? { currency: 'USD' } : {}),
             ...(input.notes !== undefined ? { notes: input.notes } : {}),
             ...(input.customerMessage !== undefined ? { customerMessage: input.customerMessage } : {}),
             ...(input.validUntil !== undefined
@@ -397,6 +398,14 @@ class QuotationService {
 
     private async storePdf(actor: Actor, quote: QuotationWithRelations, status: QuotationStatus) {
         const business = await loadBusinessSettings()
+        const prefersPhp = quote.customer.preferredCurrency === 'PHP'
+        const rate = getUsdPhpRate()
+        const ledgerCurrency = quote.currency.toUpperCase() === 'USD' ? 'USD' : quote.currency
+        const phpEquivalentCents =
+            prefersPhp && ledgerCurrency === 'USD'
+                ? usdCentsToPhpCents(quote.totalCents, rate)
+                : null
+
         const buffer = await buildQuotationPdf({
             number: quote.number,
             title: quote.title,
@@ -412,6 +421,8 @@ class QuotationService {
             totalCents: quote.totalCents,
             items: quote.items,
             business,
+            phpEquivalentCents,
+            usdPhpRate: phpEquivalentCents != null ? rate : null,
         })
 
         const key = buildPrivateDocumentKey('pdf').replace('/documents/', '/quotations/')
