@@ -1,4 +1,4 @@
-import { renderInquiryEmail } from '../emails/inquiryEmail.js'
+import { buildInquiryAttachment, renderInquiryEmail } from '../emails/inquiryEmail.js'
 import { sendEmail } from '../lib/mailer.js'
 import { AppError, isAppError } from '../lib/errors.js'
 import type { InquiryInput } from '../schemas/index.js'
@@ -17,6 +17,7 @@ class InquiryService {
             await sendEmail({
                 replyTo: { name: [input.firstName, input.lastName].filter(Boolean).join(' '), address: input.email },
                 ...email,
+                attachments: [buildInquiryAttachment(input)],
             })
         } catch (err) {
             if (isAppError(err)) throw err

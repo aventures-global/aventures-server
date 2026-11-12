@@ -6,9 +6,20 @@ const personSelect = {
     select: { id: true, email: true, firstName: true, lastName: true, profilePicture: true },
 } as const
 
+const quotationSelect = {
+    select: {
+        id: true,
+        number: true,
+        title: true,
+        status: true,
+        customerName: true,
+        customerEmail: true,
+    },
+} as const
+
 export const bookingInclude = {
     customer: personSelect,
-    quotation: { select: { id: true, number: true, title: true, status: true } },
+    quotation: quotationSelect,
     payments: {
         orderBy: { paidAt: 'desc' as const },
         include: {
@@ -20,7 +31,7 @@ export const bookingInclude = {
 
 export const bookingListInclude = {
     customer: personSelect,
-    quotation: { select: { id: true, number: true, title: true, status: true } },
+    quotation: quotationSelect,
 } satisfies Prisma.BookingInclude
 
 export type BookingWithRelations = Prisma.BookingGetPayload<{ include: typeof bookingInclude }>
@@ -46,6 +57,8 @@ class BookingRepository {
                       OR: [
                           { title: { contains: input.q, mode: 'insensitive' } },
                           { quotation: { number: { contains: input.q, mode: 'insensitive' } } },
+                          { quotation: { customerName: { contains: input.q, mode: 'insensitive' } } },
+                          { quotation: { customerEmail: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { email: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { firstName: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { lastName: { contains: input.q, mode: 'insensitive' } } },

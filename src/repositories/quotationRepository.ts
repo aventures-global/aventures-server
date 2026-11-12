@@ -45,6 +45,8 @@ class QuotationRepository {
                       OR: [
                           { number: { contains: input.q, mode: 'insensitive' } },
                           { title: { contains: input.q, mode: 'insensitive' } },
+                          { customerName: { contains: input.q, mode: 'insensitive' } },
+                          { customerEmail: { contains: input.q, mode: 'insensitive' } },
                           { customer: { email: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { firstName: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { lastName: { contains: input.q, mode: 'insensitive' } } },
@@ -87,7 +89,9 @@ class QuotationRepository {
 
     async create(data: {
         number: string
-        customerUserId: string
+        customerUserId: string | null
+        customerName: string
+        customerEmail: string
         title: string
         currency: string
         notes: string | null
@@ -113,6 +117,8 @@ class QuotationRepository {
             data: {
                 number: data.number,
                 customerUserId: data.customerUserId,
+                customerName: data.customerName,
+                customerEmail: data.customerEmail,
                 title: data.title,
                 currency: data.currency,
                 notes: data.notes,
@@ -208,8 +214,51 @@ class QuotationRepository {
         })
     }
 
+    /**
+     * Attach unclaimed quotations (and their bookings/payments) whose snapshot email
+     * matches a newly registered customer.
+     */
+    async claimByEmail(userId: string, email: string) {
+        const normalized = email.trim().toLowerCase()
+        if (!normalized) return { count: 0 }
+
+        const quotations = await prisma.quotation.updateMany({
+            where: {
+                customerUserId: null,
+                customerEmail: normalized,
+                deletedAt: null,
+            },
+            data: { customerUserId: userId },
+        })
+
+        const bookings = await prisma.booking.updateMany({
+            where: {
+                customerUserId: null,
+                quotation: { customerEmail: normalized },
+            },
+            data: { customerUserId: userId },
+        })
+
+        const payments = await prisma.payment.updateMany({
+            where: {
+                customerUserId: null,
+                booking: {
+                    OR: [{ customerUserId: userId }, { quotation: { customerEmail: normalized } }],
+                },
+            },
+            data: { customerUserId: userId },
+        })
+
+        return {
+            count: quotations.count + bookings.count + payments.count,
+            quotations: quotations.count,
+            bookings: bookings.count,
+            payments: payments.count,
+        }
+    }
+
     async createBooking(data: {
-        customerUserId: string
+        customerUserId: string | null
         quotationId: string
         title: string
         currency: string

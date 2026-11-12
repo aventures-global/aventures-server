@@ -296,6 +296,12 @@ const aboutPageSchema = z.object({
         whyItMatters: pageText(3000),
         quote: pageText(400),
     }),
+    partner: z.object({
+        caption: pageText(60),
+        name: pageText(120),
+        role: pageText(120),
+        bio: pageText(4000),
+    }),
     origin: z.object({
         eyebrow: pageText(60),
         title: pageText(160),
@@ -624,18 +630,40 @@ const quotationCurrencySchema = z
     .optional()
     .transform(() => 'USD' as const)
 
-export const quotationCreateSchema = z.object({
-    customerUserId: z.string().min(1),
-    title: z.string().trim().min(1).max(240),
-    currency: quotationCurrencySchema.default('USD'),
-    notes: z.string().trim().max(5000).nullable().optional(),
-    customerMessage: z.string().trim().max(5000).nullable().optional(),
-    validUntil: z.string().datetime().nullable().optional(),
-    items: z.array(quotationItemInputSchema).min(1).max(100),
-})
+export const quotationCreateSchema = z
+    .object({
+        customerUserId: z.string().min(1).optional(),
+        customerName: z.string().trim().min(1).max(200).optional(),
+        customerEmail: z.string().trim().email().max(320).optional(),
+        title: z.string().trim().min(1).max(240),
+        currency: quotationCurrencySchema.default('USD'),
+        notes: z.string().trim().max(5000).nullable().optional(),
+        customerMessage: z.string().trim().max(5000).nullable().optional(),
+        validUntil: z.string().datetime().nullable().optional(),
+        items: z.array(quotationItemInputSchema).min(1).max(100),
+    })
+    .superRefine((value, ctx) => {
+        if (value.customerUserId) return
+        if (!value.customerName) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['customerName'],
+                message: 'Customer name is required when no registered customer is selected',
+            })
+        }
+        if (!value.customerEmail) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['customerEmail'],
+                message: 'Customer email is required when no registered customer is selected',
+            })
+        }
+    })
 
 export const quotationUpdateSchema = z
     .object({
+        customerName: z.string().trim().min(1).max(200).optional(),
+        customerEmail: z.string().trim().email().max(320).optional(),
         title: z.string().trim().min(1).max(240).optional(),
         currency: quotationCurrencySchema,
         notes: z.string().trim().max(5000).nullable().optional(),

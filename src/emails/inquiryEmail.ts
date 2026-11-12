@@ -1,4 +1,9 @@
+import type { EmailAttachment } from '../lib/mailer.js'
 import type { InquiryInput } from '../schemas/index.js'
+
+export const INQUIRY_ATTACHMENT_FILENAME = 'aventure-inquiry.json'
+export const INQUIRY_ATTACHMENT_FORMAT = 'aventure-inquiry'
+export const INQUIRY_ATTACHMENT_VERSION = 1 as const
 
 export const colors = {
     oat: '#f5f0e7',
@@ -324,7 +329,7 @@ function buildHtml(input: InquiryInput, siteUrl: string) {
 
         <tr><td align="center" bgcolor="${colors.royalNight}" style="background-color:${colors.royalNight};padding:28px 32px;">
             <p style="margin:0;font-family:${serif};font-size:17px;font-style:italic;color:${colors.gold};">Dream It. Plan It. Live the AVENture.</p>
-            <p style="margin:10px 0 0;font-family:${sans};font-size:12px;line-height:19px;color:rgba(250,247,240,0.65);">Sent from the inquiry form on <a href="${siteUrl}" style="color:rgba(250,247,240,0.85);text-decoration:underline;">${escapeHtml(siteUrl.replace(/^https?:\/\//, ''))}</a>.<br>Replying to this email goes straight to ${escapeHtml(input.email)}.</p>
+            <p style="margin:10px 0 0;font-family:${sans};font-size:12px;line-height:19px;color:rgba(250,247,240,0.65);">Sent from the inquiry form on <a href="${siteUrl}" style="color:rgba(250,247,240,0.85);text-decoration:underline;">${escapeHtml(siteUrl.replace(/^https?:\/\//, ''))}</a>.<br>Replying to this email goes straight to ${escapeHtml(input.email)}.<br>Download the ${escapeHtml(INQUIRY_ATTACHMENT_FILENAME)} attachment to import this inquiry into a quotation draft.</p>
         </td></tr>
 
     </table>
@@ -334,10 +339,31 @@ function buildHtml(input: InquiryInput, siteUrl: string) {
 </html>`
 }
 
+/** Machine-readable copy for staff to import into a quotation draft. Omits honeypot. */
+export function buildInquiryAttachment(input: InquiryInput): EmailAttachment {
+    const { honeypot: _honeypot, ...inquiry } = input
+    const payload = {
+        format: INQUIRY_ATTACHMENT_FORMAT,
+        version: INQUIRY_ATTACHMENT_VERSION,
+        inquiry,
+    }
+    return {
+        content: Buffer.from(JSON.stringify(payload, null, 2), 'utf8').toString('base64'),
+        filename: INQUIRY_ATTACHMENT_FILENAME,
+        type: 'application/json',
+        disposition: 'attachment',
+    }
+}
+
 export function renderInquiryEmail(input: InquiryInput, siteUrl: string) {
+    const text = [
+        buildText(input),
+        '',
+        `Attachment: ${INQUIRY_ATTACHMENT_FILENAME} (import into a quotation draft in admin).`,
+    ].join('\n')
     return {
         subject: buildSubject(input),
-        text: buildText(input),
+        text,
         html: buildHtml(input, siteUrl.replace(/\/$/, '')),
     }
 }

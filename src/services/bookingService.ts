@@ -59,6 +59,8 @@ function serializeBookingBase(booking: BookingListItem | BookingWithRelations) {
                   number: booking.quotation.number,
                   title: booking.quotation.title,
                   status: 'status' in booking.quotation ? booking.quotation.status : undefined,
+                  customerName: booking.quotation.customerName,
+                  customerEmail: booking.quotation.customerEmail,
               }
             : null,
         status: booking.status,

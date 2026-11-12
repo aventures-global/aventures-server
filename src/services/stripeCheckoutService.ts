@@ -43,6 +43,11 @@ class StripeCheckoutService {
         const user = await UserRepository.findById(authUserId)
         if (!user) throw new AppError(401, 'UNAUTHORIZED', 'User not bootstrapped')
 
+        // Claim any newer unregistered quotations issued to this email since the last bootstrap.
+        if (user.role === 'CUSTOMER' && user.email) {
+            await QuotationRepository.claimByEmail(authUserId, user.email)
+        }
+
         const share = await QuotationRepository.findShareByTokenHash(hashToken(token))
         if (!share) throw new AppError(404, 'NOT_FOUND', 'Share link not found')
         assertSharePayable(share)
@@ -105,7 +110,7 @@ class StripeCheckoutService {
                 adaptive_pricing: { enabled: enableAdaptivePricing },
                 metadata: {
                     bookingId: booking.id,
-                    customerUserId: quote.customerUserId,
+                    customerUserId: authUserId,
                     quotationId: quote.id,
                     shareId: share.id,
                     preferredCurrency,

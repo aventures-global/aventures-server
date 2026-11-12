@@ -91,6 +91,8 @@ function serializePayment(payment: PaymentWithRelations) {
                       id: booking.quotation.id,
                       number: booking.quotation.number,
                       title: booking.quotation.title,
+                      customerName: booking.quotation.customerName,
+                      customerEmail: booking.quotation.customerEmail,
                   }
                 : null,
             customer: serializePerson(booking.customer),
@@ -155,12 +157,14 @@ class PaymentService {
         }
 
         const createdById = input.createdById ?? null
-        const actorId = input.actorId ?? createdById ?? booking.customerUserId
+        const actorId = input.actorId ?? createdById ?? booking.customerUserId ?? null
 
         try {
             const payment = await PaymentRepository.create({
                 booking: { connect: { id: booking.id } },
-                customer: { connect: { id: booking.customerUserId } },
+                ...(booking.customerUserId
+                    ? { customer: { connect: { id: booking.customerUserId } } }
+                    : {}),
                 amountCents: input.amountCents,
                 currency: booking.currency,
                 method: input.method,
@@ -357,7 +361,11 @@ class PaymentService {
         ]
         const lines = [header.join(',')]
         for (const payment of items) {
-            const customer = displayName(payment.customer)
+            const customer = payment.customer
+                ? displayName(payment.customer)
+                : payment.booking.quotation?.customerName ||
+                  payment.booking.quotation?.customerEmail ||
+                  'Guest'
             lines.push(
                 [
                     payment.paidAt.toISOString(),

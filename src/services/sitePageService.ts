@@ -1,14 +1,24 @@
 import { AppError } from '../lib/errors.js'
-import type { SitePageContentMap, SitePageId } from '../lib/sitePageContent.js'
+import { DEFAULT_ABOUT_PARTNER, type AboutPageContent, type SitePageContentMap, type SitePageId } from '../lib/sitePageContent.js'
 import SitePageRepository from '../repositories/sitePageRepository.js'
 import { sitePageSchemas } from '../schemas/index.js'
 
 type SitePageRow = NonNullable<Awaited<ReturnType<typeof SitePageRepository.findById>>>
 
+function withAboutDefaults(content: unknown): AboutPageContent {
+    const about = content as AboutPageContent
+    if (about.partner) return about
+    return { ...about, partner: DEFAULT_ABOUT_PARTNER }
+}
+
 function toDto<Id extends SitePageId>(row: SitePageRow) {
+    const content =
+        row.id === 'about'
+            ? (withAboutDefaults(row.content) as SitePageContentMap[Id])
+            : (row.content as unknown as SitePageContentMap[Id])
     return {
         id: row.id as Id,
-        content: row.content as unknown as SitePageContentMap[Id],
+        content,
         updatedAt: row.updatedAt.toISOString(),
     }
 }

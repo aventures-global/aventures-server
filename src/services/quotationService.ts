@@ -49,6 +49,15 @@ function displayName(user: { firstName: string | null; lastName: string | null; 
     return name || user.email || 'Customer'
 }
 
+function normalizeEmail(email: string) {
+    return email.trim().toLowerCase()
+}
+
+function snapshotDisplayName(quote: Pick<QuotationWithRelations, 'customerName' | 'customerEmail' | 'customer'>) {
+    if (quote.customer) return displayName(quote.customer)
+    return quote.customerName.trim() || quote.customerEmail || 'Customer'
+}
+
 function normalizeItems(items: ItemInput[]) {
     return items.map((item, index) => {
         const isOptional = item.isOptional ?? item.kind === 'OPTIONAL'
@@ -143,6 +152,9 @@ function serializeQuotation(quote: QuotationWithRelations) {
         title: quote.title,
         notes: quote.notes,
         customerMessage: quote.customerMessage,
+        customerName: quote.customerName,
+        customerEmail: quote.customerEmail,
+        accountLinked: Boolean(quote.customerUserId),
         validUntil: quote.validUntil?.toISOString() ?? null,
         subtotalCents: quote.subtotalCents,
         optionalCents: quote.optionalCents,
@@ -217,6 +229,58 @@ class QuotationService {
         return customer
     }
 
+    /**
+     * Resolve who the quotation is for. Prefer an existing CUSTOMER account when the email
+     * matches; otherwise keep customerUserId null and store the snapshot contact.
+     */
+    private async resolveCustomerContact(input: {
+        customerUserId?: string
+        customerName?: string
+        customerEmail?: string
+    }): Promise<{ customerUserId: string | null; customerName: string; customerEmail: string }> {
+        if (input.customerUserId) {
+            const customer = await this.assertCustomer(input.customerUserId)
+            const name = displayName(customer)
+            const email = customer.email?.trim()
+            if (!email) {
+                throw new AppError(400, 'CUSTOMER_EMAIL_MISSING', 'Customer has no email address')
+            }
+            return {
+                customerUserId: customer.id,
+                customerName: name,
+                customerEmail: normalizeEmail(email),
+            }
+        }
+
+        const name = input.customerName?.trim()
+        const email = input.customerEmail ? normalizeEmail(input.customerEmail) : ''
+        if (!name || !email) {
+            throw new AppError(
+                400,
+                'CUSTOMER_REQUIRED',
+                'Select a registered customer or provide a name and email',
+            )
+        }
+
+        const existing = await UserRepository.findByEmail(email)
+        if (existing) {
+            if (existing.role !== 'CUSTOMER') {
+                throw new AppError(
+                    400,
+                    'INVALID_CUSTOMER',
+                    'That email belongs to a team account and cannot receive a customer quotation',
+                )
+            }
+            return {
+                customerUserId: existing.id,
+                customerName: name || displayName(existing),
+                customerEmail: normalizeEmail(existing.email ?? email),
+            }
+        }
+
+        return { customerUserId: null, customerName: name, customerEmail: email }
+    }
+
     private async getEditable(id: string) {
         const quote = await QuotationRepository.findById(id)
         if (!quote) throw new AppError(404, 'NOT_FOUND', 'Quotation not found')
@@ -268,13 +332,19 @@ class QuotationService {
     }
 
     async create(actor: Actor, input: z.infer<typeof quotationCreateSchema>) {
-        await this.assertCustomer(input.customerUserId)
+        const contact = await this.resolveCustomerContact({
+            customerUserId: input.customerUserId,
+            customerName: input.customerName,
+            customerEmail: input.customerEmail,
+        })
         const items = normalizeItems(input.items)
         const totals = computeTotals(items)
         const number = await QuotationRepository.nextNumber(new Date().getFullYear())
         const quote = await QuotationRepository.create({
             number,
-            customerUserId: input.customerUserId,
+            customerUserId: contact.customerUserId,
+            customerName: contact.customerName,
+            customerEmail: contact.customerEmail,
             title: input.title,
             currency: 'USD',
             notes: input.notes ?? null,
@@ -286,9 +356,13 @@ class QuotationService {
         })
         await AuditLogRepository.create({
             actorId: actor.id,
-            subjectUserId: input.customerUserId,
+            subjectUserId: contact.customerUserId,
             action: 'quotation.created',
-            metadata: { quotationId: quote.id, number: quote.number },
+            metadata: {
+                quotationId: quote.id,
+                number: quote.number,
+                customerEmail: contact.customerEmail,
+            },
         })
         return { quotation: serializeQuotation(quote) }
     }
@@ -299,10 +373,42 @@ class QuotationService {
             throw new AppError(400, 'NOT_EDITABLE', 'Only draft or sent quotations can be edited')
         }
 
+        const touchingContact = input.customerName !== undefined || input.customerEmail !== undefined
+        if (touchingContact) {
+            if (existing.status !== 'DRAFT' || existing.customerUserId) {
+                throw new AppError(
+                    400,
+                    'CUSTOMER_LOCKED',
+                    'Customer contact can only be edited on unclaimed draft quotations',
+                )
+            }
+        }
+
+        let contactUpdate: {
+            customerUserId: string | null
+            customerName: string
+            customerEmail: string
+        } | null = null
+        if (touchingContact) {
+            contactUpdate = await this.resolveCustomerContact({
+                customerName: input.customerName ?? existing.customerName,
+                customerEmail: input.customerEmail ?? existing.customerEmail,
+            })
+        }
+
         const items = input.items ? normalizeItems(input.items) : undefined
         const totals = items ? computeTotals(items) : undefined
 
         const quote = await QuotationRepository.update(id, {
+            ...(contactUpdate
+                ? {
+                      customerName: contactUpdate.customerName,
+                      customerEmail: contactUpdate.customerEmail,
+                      ...(contactUpdate.customerUserId
+                          ? { customer: { connect: { id: contactUpdate.customerUserId } } }
+                          : { customer: { disconnect: true } }),
+                  }
+                : {}),
             ...(input.title !== undefined ? { title: input.title } : {}),
             ...(input.currency !== undefined ? { currency: 'USD' } : {}),
             ...(input.notes !== undefined ? { notes: input.notes } : {}),
@@ -326,7 +432,7 @@ class QuotationService {
 
         await AuditLogRepository.create({
             actorId: actor.id,
-            subjectUserId: existing.customerUserId,
+            subjectUserId: quote.customerUserId ?? existing.customerUserId,
             action: 'quotation.updated',
             metadata: { quotationId: id, number: existing.number },
         })
@@ -398,7 +504,7 @@ class QuotationService {
 
     private async storePdf(actor: Actor, quote: QuotationWithRelations, status: QuotationStatus) {
         const business = await loadBusinessSettings()
-        const prefersPhp = quote.customer.preferredCurrency === 'PHP'
+        const prefersPhp = quote.customer?.preferredCurrency === 'PHP'
         const rate = getUsdPhpRate()
         const ledgerCurrency = quote.currency.toUpperCase() === 'USD' ? 'USD' : quote.currency
         const phpEquivalentCents =
@@ -411,8 +517,8 @@ class QuotationService {
             title: quote.title,
             currency: quote.currency,
             status,
-            customerName: displayName(quote.customer),
-            customerEmail: quote.customer.email,
+            customerName: snapshotDisplayName(quote),
+            customerEmail: quote.customerEmail,
             customerMessage: quote.customerMessage,
             validUntil: quote.validUntil,
             issuedAt: quote.createdAt,
@@ -455,7 +561,7 @@ class QuotationService {
         if (existing.status !== 'DRAFT' && existing.status !== 'SENT') {
             throw new AppError(400, 'INVALID_STATUS', 'Only draft or sent quotations can be emailed')
         }
-        const customerEmail = existing.customer?.email?.trim()
+        const customerEmail = existing.customerEmail?.trim()
         if (!customerEmail) {
             throw new AppError(400, 'CUSTOMER_EMAIL_MISSING', 'Customer has no email address')
         }
@@ -482,7 +588,7 @@ class QuotationService {
 
         try {
             const rendered = renderQuotationEmail({
-                customerName: displayName(quote.customer),
+                customerName: snapshotDisplayName(quote),
                 number: quote.number,
                 title: quote.title,
                 shareUrl,
@@ -633,6 +739,8 @@ class QuotationService {
                     totalCents: quote.totalCents,
                     total: formatMoney(quote.totalCents, quote.currency),
                     customerMessage: quote.customerMessage,
+                    customerEmail: quote.customerEmail,
+                    accountLinked: Boolean(quote.customerUserId),
                     validUntil: quote.validUntil?.toISOString() ?? null,
                     hasPdf: Boolean(quote.pdfStorageKey),
                     items: quote.items.map((item) => ({

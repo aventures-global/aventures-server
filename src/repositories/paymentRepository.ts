@@ -12,7 +12,15 @@ export const paymentInclude = {
     voidedBy: personSelect,
     booking: {
         include: {
-            quotation: { select: { id: true, number: true, title: true } },
+            quotation: {
+                select: {
+                    id: true,
+                    number: true,
+                    title: true,
+                    customerName: true,
+                    customerEmail: true,
+                },
+            },
             customer: personSelect,
         },
     },
@@ -53,6 +61,16 @@ class PaymentRepository {
                           { reference: { contains: input.q, mode: 'insensitive' } },
                           { booking: { title: { contains: input.q, mode: 'insensitive' } } },
                           { booking: { quotation: { number: { contains: input.q, mode: 'insensitive' } } } },
+                          {
+                              booking: {
+                                  quotation: { customerName: { contains: input.q, mode: 'insensitive' } },
+                              },
+                          },
+                          {
+                              booking: {
+                                  quotation: { customerEmail: { contains: input.q, mode: 'insensitive' } },
+                              },
+                          },
                           { customer: { email: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { firstName: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { lastName: { contains: input.q, mode: 'insensitive' } } },
@@ -104,6 +122,16 @@ class PaymentRepository {
                           { reference: { contains: input.q, mode: 'insensitive' } },
                           { booking: { title: { contains: input.q, mode: 'insensitive' } } },
                           { booking: { quotation: { number: { contains: input.q, mode: 'insensitive' } } } },
+                          {
+                              booking: {
+                                  quotation: { customerName: { contains: input.q, mode: 'insensitive' } },
+                              },
+                          },
+                          {
+                              booking: {
+                                  quotation: { customerEmail: { contains: input.q, mode: 'insensitive' } },
+                              },
+                          },
                           { customer: { email: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { firstName: { contains: input.q, mode: 'insensitive' } } },
                           { customer: { lastName: { contains: input.q, mode: 'insensitive' } } },

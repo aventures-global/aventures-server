@@ -14,6 +14,14 @@ class UserRepository {
         return prisma.user.findUnique({ where: { id } })
     }
 
+    async findByEmail(email: string) {
+        const normalized = email.trim().toLowerCase()
+        if (!normalized) return null
+        return prisma.user.findFirst({
+            where: { email: { equals: normalized, mode: 'insensitive' } },
+        })
+    }
+
     async findMany(options: {
         where: Prisma.UserWhereInput
         orderBy: Prisma.UserOrderByWithRelationInput

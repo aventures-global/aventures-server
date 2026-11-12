@@ -5,6 +5,7 @@ import { AppError } from '../lib/errors.js'
 import { TEAM_ROLES, isPromotion } from '../lib/permissions.js'
 import { deletePublicUrl } from '../lib/storage.js'
 import AuditLogRepository from '../repositories/auditLogRepository.js'
+import QuotationRepository from '../repositories/quotationRepository.js'
 import type { BootstrapSeed } from '../repositories/userRepository.js'
 import UserRepository from '../repositories/userRepository.js'
 import type {
@@ -78,6 +79,10 @@ class UserService {
         ) {
             // First login only, so a super admin's later demotion is not undone on next login.
             user = await UserRepository.setRole(userId, 'ADMIN')
+        }
+
+        if (user.role === 'CUSTOMER' && user.email) {
+            await QuotationRepository.claimByEmail(userId, user.email)
         }
 
         return serializeUser(user)

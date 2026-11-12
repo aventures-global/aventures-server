@@ -376,8 +376,12 @@ enum BookingStatus {
 model Quotation {
   id               String            @id @default(cuid())
   number           String            @unique
-  customerUserId   String
-  customer         User              @relation("QuotationCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  /// Null until the customer signs up with customerEmail; set immediately when quoting a registered user.
+  customerUserId   String?
+  customer         User?             @relation("QuotationCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  /// Snapshot used for PDF, email, and search even before an account exists.
+  customerName     String
+  customerEmail    String
   status           QuotationStatus   @default(DRAFT)
   currency         String            @default("USD")
   title            String
@@ -406,6 +410,7 @@ model Quotation {
   updatedAt        DateTime          @updatedAt
 
   @@index([customerUserId, createdAt])
+  @@index([customerEmail])
   @@index([status, createdAt])
   @@index([deletedAt])
 }
@@ -471,8 +476,9 @@ enum FinanceEntryType {
 /// Thin booking row created from an accepted quotation; full workflow comes later.
 model Booking {
   id             String               @id @default(cuid())
-  customerUserId String
-  customer       User                 @relation("BookingCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  /// Null when converted from an unregistered quotation; set when the customer signs up or was already linked.
+  customerUserId String?
+  customer       User?                @relation("BookingCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
   quotationId    String?              @unique
   quotation      Quotation?           @relation(fields: [quotationId], references: [id], onDelete: SetNull)
   status         BookingStatus        @default(PENDING)
@@ -497,8 +503,9 @@ model Payment {
   id                       String         @id @default(cuid())
   bookingId                String
   booking                  Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  customerUserId           String
-  customer                 User           @relation("PaymentCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+  /// Null for guest bookings until the customer account is claimed.
+  customerUserId           String?
+  customer                 User?          @relation("PaymentCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
   amountCents              Int
   currency                 String         @default("USD")
   method                   PaymentMethod
