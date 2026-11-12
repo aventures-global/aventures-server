@@ -119,16 +119,18 @@ model Tour {
   experiences      Json     @default("[]")
   storyTitles      String[] @default([])
   travelTips       String[] @default([])
-  featured         Boolean  @default(false)
-  region           String   @default("other")
-  sortOrder        Float    @default(0)
-  searchText       String   @default("")
+  featured         Boolean   @default(false)
+  featuredAt       DateTime?
+  region           String    @default("other")
+  sortOrder        Float     @default(0)
+  searchText       String    @default("")
   lat              Float?
   lng              Float?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([sortOrder])
+  @@index([featured, featuredAt])
 }
 
 model GeocodeCache {

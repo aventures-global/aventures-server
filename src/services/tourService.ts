@@ -17,6 +17,9 @@ import type { z } from 'zod'
 
 type SearchInput = z.infer<typeof tourSearchSchema>
 
+/** Home page “Top Destinations of the Month” shows this many CMS featured tours. */
+export const FEATURED_TOUR_LIMIT = 3
+
 const MIN_GAP = 1e-6
 /** Places farther than this from every tour get no "closest journeys" suggestions. */
 const NEARBY_MAX_KM = 1500
@@ -199,7 +202,7 @@ class TourService {
     }
 
     async listFeatured() {
-        const tours = await TourRepository.findFeatured()
+        const tours = await TourRepository.findFeatured(FEATURED_TOUR_LIMIT)
         return tours.map(toTourDto)
     }
 
@@ -218,23 +221,26 @@ class TourService {
             throw new AppError(409, 'CONFLICT', 'Tour slug already exists')
         }
 
-        const tour = await TourRepository.create({
-            id,
-            slug: input.slug,
-            title: input.title,
-            tagline: input.tagline,
-            shortDescription: input.shortDescription,
-            coverImage: input.coverImage,
-            location: input.location,
-            experiences: input.experiences,
-            storyTitles: input.storyTitles,
-            travelTips: input.travelTips,
-            featured: input.featured,
-            region: input.region,
-            sortOrder: (await TourRepository.maxSortOrder()) + 1,
-            searchText: buildTourSearchText(input),
-            ...(await coordsOrNull(input.location)),
-        })
+        const tour = await TourRepository.createFeaturing(
+            {
+                id,
+                slug: input.slug,
+                title: input.title,
+                tagline: input.tagline,
+                shortDescription: input.shortDescription,
+                coverImage: input.coverImage,
+                location: input.location,
+                experiences: input.experiences,
+                storyTitles: input.storyTitles,
+                travelTips: input.travelTips,
+                featured: input.featured,
+                region: input.region,
+                sortOrder: (await TourRepository.maxSortOrder()) + 1,
+                searchText: buildTourSearchText(input),
+                ...(await coordsOrNull(input.location)),
+            },
+            FEATURED_TOUR_LIMIT,
+        )
         return toTourDto(tour)
     }
 
@@ -246,7 +252,7 @@ class TourService {
         const current = toTourDto(existing)
         const locationChanged = input.location !== undefined && input.location !== existing.location
         const coords = locationChanged ? await coordsOrNull(input.location!) : undefined
-        const tour = await TourRepository.updateBySlug(slug, {
+        const data = {
             ...(locationChanged ? { lat: coords?.lat ?? null, lng: coords?.lng ?? null } : {}),
             searchText: buildTourSearchText({
                 title: input.title ?? current.title,
@@ -270,7 +276,15 @@ class TourService {
             ...(input.travelTips !== undefined ? { travelTips: input.travelTips } : {}),
             ...(input.featured !== undefined ? { featured: input.featured } : {}),
             ...(input.region !== undefined ? { region: input.region } : {}),
-        })
+        }
+        const tour =
+            input.featured !== undefined
+                ? await TourRepository.updateFeaturing(slug, data, {
+                      featuredLimit: FEATURED_TOUR_LIMIT,
+                      excludeId: existing.id,
+                      wasFeatured: existing.featured,
+                  })
+                : await TourRepository.updateBySlug(slug, data)
         return toTourDto(tour)
     }
 

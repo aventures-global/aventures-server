@@ -3,17 +3,90 @@ import type { Prisma } from '../generated/prisma/client.js'
 import { TOUR_LIST_SELECT } from '../lib/mappers.js'
 import { prisma } from '../lib/prisma.js'
 
+type Tx = Prisma.TransactionClient
+
 const DISPLAY_ORDER: Prisma.TourOrderByWithRelationInput[] = [{ sortOrder: 'asc' }, { id: 'asc' }]
+
+/** Oldest featured first — used when a new feature needs to drop one. */
+const FEATURED_AGE_ORDER: Prisma.TourOrderByWithRelationInput[] = [
+    { featuredAt: { sort: 'asc', nulls: 'first' } },
+    { createdAt: 'asc' },
+    { id: 'asc' },
+]
 
 class TourRepository {
     async findAll() {
         return prisma.tour.findMany({ orderBy: DISPLAY_ORDER })
     }
 
-    async findFeatured() {
+    async findFeatured(limit: number) {
         return prisma.tour.findMany({
             where: { featured: true },
             orderBy: DISPLAY_ORDER,
+            take: limit,
+        })
+    }
+
+    /**
+     * Unfeature oldest featured tours until at most `keep` remain
+     * (optionally ignoring `excludeId`, e.g. the tour about to be featured).
+     */
+    async dropOldestFeatured(tx: Tx, keep: number, excludeId?: string) {
+        const others = await tx.tour.findMany({
+            where: {
+                featured: true,
+                ...(excludeId ? { id: { not: excludeId } } : {}),
+            },
+            orderBy: FEATURED_AGE_ORDER,
+            select: { id: true },
+        })
+        const toDrop = others.slice(0, Math.max(0, others.length - keep))
+        if (toDrop.length === 0) return
+        await tx.tour.updateMany({
+            where: { id: { in: toDrop.map((tour) => tour.id) } },
+            data: { featured: false, featuredAt: null },
+        })
+    }
+
+    async createFeaturing(data: Prisma.TourCreateInput, featuredLimit: number) {
+        return prisma.$transaction(async (tx) => {
+            if (data.featured) {
+                await this.dropOldestFeatured(tx, featuredLimit - 1)
+                return tx.tour.create({
+                    data: { ...data, featured: true, featuredAt: new Date() },
+                })
+            }
+            return tx.tour.create({
+                data: { ...data, featured: false, featuredAt: null },
+            })
+        })
+    }
+
+    async updateFeaturing(
+        slug: string,
+        data: Prisma.TourUpdateInput,
+        options: { featuredLimit: number; excludeId: string; wasFeatured: boolean },
+    ) {
+        return prisma.$transaction(async (tx) => {
+            const featured = data.featured
+            if (featured === true) {
+                await this.dropOldestFeatured(tx, options.featuredLimit - 1, options.excludeId)
+                return tx.tour.update({
+                    where: { slug },
+                    data: {
+                        ...data,
+                        featured: true,
+                        ...(options.wasFeatured ? {} : { featuredAt: new Date() }),
+                    },
+                })
+            }
+            if (featured === false) {
+                return tx.tour.update({
+                    where: { slug },
+                    data: { ...data, featured: false, featuredAt: null },
+                })
+            }
+            return tx.tour.update({ where: { slug }, data })
         })
     }
 

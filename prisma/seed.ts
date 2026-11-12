@@ -171,10 +171,14 @@ async function main() {
             create: {
                 id: tour.id,
                 ...content,
+                featuredAt: tour.featured ? new Date() : null,
                 region: guessRegion(tour.location),
                 sortOrder: index + 1,
             },
-            update: content,
+            update: {
+                ...content,
+                ...(tour.featured ? {} : { featuredAt: null }),
+            },
         })
     }
 
