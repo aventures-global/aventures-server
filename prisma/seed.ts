@@ -156,6 +156,7 @@ async function main() {
         const content = {
             slug: tour.slug,
             title: tour.title,
+            shortTitle: tour.shortTitle ?? '',
             tagline: tour.tagline,
             shortDescription: tour.shortDescription,
             coverImage: await resolveAssetUrl(tour.coverImage, urlMap),

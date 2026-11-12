@@ -37,6 +37,7 @@ export const tourCreateSchema = z.object({
         .min(1)
         .refine((value) => !RESERVED_TOUR_SLUGS.has(value), 'This URL slug is reserved'),
     title: z.string().min(1),
+    shortTitle: z.string().trim().max(40).default(''),
     tagline: z.string().min(1),
     shortDescription: z.string().min(1),
     coverImage: z.string().min(1),

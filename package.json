@@ -16,6 +16,7 @@
     "tours:backfill": "tsx scripts/backfill-tours.ts",
     "tours:backfill-content": "tsx scripts/backfill-destination-content.ts",
     "tours:backfill-search": "tsx scripts/backfill-search-text.ts",
+    "tours:backfill-short-titles": "tsx scripts/backfill-short-titles.ts",
     "tours:add-missing": "tsx scripts/add-missing-tours.ts",
     "tours:geo-columns": "tsx scripts/add-geo-columns.ts",
     "tours:backfill-coords": "tsx scripts/backfill-tour-coords.ts",

@@ -112,6 +112,7 @@ model Tour {
   id               String   @id
   slug             String   @unique
   title            String
+  shortTitle       String   @default("")
   tagline          String
   shortDescription String
   coverImage       String

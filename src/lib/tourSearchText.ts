@@ -1,5 +1,6 @@
 type SearchableTour = {
     title: string
+    shortTitle?: string
     tagline: string
     shortDescription: string
     location: string
@@ -11,6 +12,7 @@ type SearchableTour = {
 export function buildTourSearchText(tour: SearchableTour): string {
     return [
         tour.title,
+        tour.shortTitle ?? '',
         tour.tagline,
         tour.shortDescription,
         tour.location,

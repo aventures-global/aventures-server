@@ -40,8 +40,8 @@ async function coordsOrNull(location: string) {
     }
 }
 
-function spellingText(tour: { title: string; location: string; slug: string }) {
-    return splitWords(`${tour.title} ${tour.location} ${tour.slug}`)
+function spellingText(tour: { title: string; shortTitle?: string; location: string; slug: string }) {
+    return splitWords(`${tour.title} ${tour.shortTitle ?? ''} ${tour.location} ${tour.slug}`)
         .filter((word) => !GENERIC_WORDS.has(word))
         .join(' ')
 }
@@ -226,6 +226,7 @@ class TourService {
                 id,
                 slug: input.slug,
                 title: input.title,
+                shortTitle: input.shortTitle,
                 tagline: input.tagline,
                 shortDescription: input.shortDescription,
                 coverImage: input.coverImage,
@@ -256,6 +257,7 @@ class TourService {
             ...(locationChanged ? { lat: coords?.lat ?? null, lng: coords?.lng ?? null } : {}),
             searchText: buildTourSearchText({
                 title: input.title ?? current.title,
+                shortTitle: input.shortTitle ?? current.shortTitle,
                 tagline: input.tagline ?? current.tagline,
                 shortDescription: input.shortDescription ?? current.shortDescription,
                 location: input.location ?? current.location,
@@ -265,6 +267,7 @@ class TourService {
             }),
             ...(input.slug !== undefined ? { slug: input.slug } : {}),
             ...(input.title !== undefined ? { title: input.title } : {}),
+            ...(input.shortTitle !== undefined ? { shortTitle: input.shortTitle } : {}),
             ...(input.tagline !== undefined ? { tagline: input.tagline } : {}),
             ...(input.shortDescription !== undefined
                 ? { shortDescription: input.shortDescription }

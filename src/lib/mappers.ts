@@ -7,6 +7,7 @@ export type TourDto = {
     id: string
     slug: string
     title: string
+    shortTitle: string
     tagline: string
     shortDescription: string
     coverImage: string
@@ -69,6 +70,7 @@ export function toTourDto(tour: Tour): TourDto {
         id: tour.id,
         slug: tour.slug,
         title: tour.title,
+        shortTitle: tour.shortTitle,
         tagline: tour.tagline,
         shortDescription: tour.shortDescription,
         coverImage: tour.coverImage,
